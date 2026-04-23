@@ -1,120 +1,104 @@
+<section class="w-full flex-1 space-y-8 py-4">
 
-
-<section class="w-full flex-1">
-    <div class="mb-4 bg-white rounded border border-gray-200 p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div class="flex items-center gap-4">
-            <img src="assets/images/logo.png" alt="Seller" class="w-20 h-20 object-contain bg-gray-100 rounded" />
-            <h2 class="text-xl md:text-3xl font-bold text-gray-900">Want to be a Seller?</h2>
-        </div>
-        <a
-            routerLink="/seller-screen"
-            class="inline-flex items-center justify-center px-5 py-3 rounded-xl border border-blue-500 text-blue-600 font-semibold hover:bg-blue-50 transition"
-        >
-            Register Now As a Seller
-        </a>
+    <!-- Main Carousel Section -->
+    <div class="rounded-3xl overflow-hidden shadow-xl">
+        <app-carousel [slideImages]="images"></app-carousel>
     </div>
-    <app-carousel [slideImages]="images"></app-carousel>
-    <article class="mb-5">
-        <h3 class="text-2xl font-semibold mb-5">NEW ARRIVALS</h3>
 
-        <div class="flex justify-center items-center h-[60vh]" *ngIf="error && isLoading">
-            <div class="text-red-500 flex flex-col justify-center items-center">
-              <i class="fa-solid fa-circle-exclamation text-6xl"></i>
-            <h4 class="text-md px-4 py-2">HTTP ERROR Occured</h4>
-          </div>
+    <!-- Product Section -->
+    <article class="space-y-8">
+        <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-4">
+            <h3 class="text-2xl font-black text-gray-900 dark:text-white tracking-tight">New Arrivals</h3>
+            <a href="#" class="text-sm font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400">View All</a>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-5" *ngIf="!error && isLoading">
-            <app-cardskeleton
-            *ngFor="let skeleton of skeletons"
-            ></app-cardskeleton>
+        <!-- Error State -->
+        <div class="flex justify-center items-center h-[40vh]" *ngIf="error && isLoading">
+            <div class="text-red-500 flex flex-col justify-center items-center space-y-4">
+                <div class="p-6 bg-red-50 dark:bg-red-900/10 rounded-full">
+                    <i class="fa-solid fa-circle-exclamation text-6xl"></i>
+                </div>
+                <div class="text-center">
+                    <h4 class="text-xl font-bold">Connection Failed</h4>
+                    <p class="text-sm opacity-70">Unable to fetch products. Please try again later.</p>
+                </div>
+            </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-5" *ngIf="!isLoading && products.length>0">
-            <div *ngFor="let product of products" class="relative flex flex-col w-full max-w-md bg-white hover:border border-gray-300 rounded shadow-sm hover:shadow-md transition-shadow">
-                <!-- Product Image -->
-                <a [routerLink]="['categories','product',product.id]" class="w-full h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
-                    <img 
-                    class="transition-all duration-500 hover:scale-110 w-full h-full object-cover"
-                    [src]="product.images[0]" 
-                    [alt]="product.title"
-                    onerror="this.src='assets/images/logo.png'" />
-                </a>
+        <!-- Loading Skeletons -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6" *ngIf="!error && isLoading">
+            <app-cardskeleton *ngFor="let skeleton of skeletons"></app-cardskeleton>
+        </div>
+
+        <!-- Product Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6" *ngIf="!isLoading && products.length > 0">
+            <div *ngFor="let product of products" class="group relative flex flex-col w-full bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-2xl transition-all duration-500 overflow-hidden">
                 
-                <!-- Product Info -->
-                <div class="flex flex-col p-4 flex-grow">
-                    <!-- Category Badge -->
-                    <div class="mb-2">
-                        <span class="inline-block bg-green-600 text-white text-xs px-2 py-1 rounded">
-                            {{product.category || 'Product'}}
+                <!-- Wishlist Button (Floating) -->
+                <button class="absolute top-4 right-4 z-10 w-10 h-10 flex items-center justify-center rounded-full bg-white/80 dark:bg-gray-900/80 backdrop-blur-md text-gray-400 hover:text-red-500 shadow-sm transition-all transform scale-0 group-hover:scale-100 duration-300">
+                    <i class="fa-regular fa-heart"></i>
+                </button>
+
+                <!-- Product Image Container -->
+                <a [routerLink]="['categories','product',product.id]" class="relative w-full aspect-square overflow-hidden bg-gray-50 dark:bg-gray-700">
+                    <img 
+                        class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                        [src]="product.images[0]" 
+                        [alt]="product.title"
+                        onerror="this.src='assets/images/logo.png'" />
+                    
+                    <!-- Stock Badge Overlay -->
+                    <div class="absolute bottom-3 left-3">
+                        <span [class]="product.stock == 'In stock' ? 'bg-green-500' : 'bg-orange-500'" class="text-[10px] font-black text-white px-3 py-1 rounded-full uppercase tracking-wider shadow-lg">
+                            {{product.stock}}
                         </span>
                     </div>
-                    
-                    <!-- Product Name -->
-                    <a [routerLink]="['categories','product',product.id]">
-                        <h5 class="mb-2 text-sm font-semibold tracking-tight text-gray-900 dark:text-white line-clamp-2 hover:text-blue-600">
-                            {{product.title}}
-                        </h5>
-                    </a>
-                    
-                    <!-- Item Code -->
-                    <p class="text-xs text-gray-500 mb-2" *ngIf="product.item_code">
-                        Code: <span class="font-mono">{{product.item_code}}</span>
-                    </p>
-                    
-                    <!-- Price -->
-                    <p class="text-sm text-gray-700 dark:text-gray-400 mb-3">
-                       <span class="font-bold mr-2 text-lg">&#8377;{{product.price}}</span> 
-                       <span class="line-through text-xs" *ngIf="product.prevprice > 0">&#8377;{{product.prevprice}}</span> 
-                    </p>
-
-                    <button 
-                    *ngIf="isProductInCart(product); else addtocart"
-                    class="px-4 py-2 bg-red-700 text-gray-200 w-full rounded mb-3"
-                    aria-label="Remove from Cart"
-                    (click)="removeFromCart(product)"
-                    >
-                        <i class="fa-solid fa-trash mr-2"></i>
-                        Remove
-                    </button>
-
-                    <ng-template #addtocart>
-                        <button 
-                        class="px-4 py-2 bg-gray-800 text-gray-200 w-full rounded mb-3"
-                        aria-label="Add to Cart"
-                        (click)="addToCart(product)"
-                        *ngIf="product.stock=='In stock'"
-                        >
-                            <i title="Shopping Cart" class="fa-solid fa-bag-shopping mr-2"></i>
-                            Add to Cart
-                        </button>
-
-                        <div 
-                        class="px-4 py-2 bg-yellow-600 text-center text-gray-200 w-full cursor-not-allowed rounded mb-3"
-                        aria-label="Available soon"
-                        *ngIf="product.stock=='Out of stock'"
-                        >Available soon
-                        </div>
-                    </ng-template>
-
-                    <!-- Stock & Wishlist -->
-                    <div class="flex justify-between items-center mt-auto">
-                        <span *ngIf="product.stock=='In stock'; else outofstock" class="bg-green-600 text-white text-center text-xs px-2 py-1 rounded">
-                            {{product.stock}}
+                </a>
+                
+                <!-- Product Content -->
+                <div class="flex flex-col p-5 flex-grow space-y-3">
+                    <div class="space-y-1">
+                        <span class="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">
+                            {{product.category || 'Product'}}
                         </span>
-                        <ng-template #outofstock>
-                            <span class="bg-yellow-600 text-white text-center text-xs px-2 py-1 rounded" >
-                            {{product.stock}}
-                            </span>
+                        <a [routerLink]="['categories','product',product.id]">
+                            <h5 class="text-sm font-bold text-gray-900 dark:text-white line-clamp-2 leading-snug group-hover:text-blue-600 transition-colors">
+                                {{product.title}}
+                            </h5>
+                        </a>
+                    </div>
+                    
+                    <div class="flex items-end justify-between mt-auto">
+                        <div class="flex flex-col">
+                            <span class="text-xs text-gray-400 dark:text-gray-500 line-through" *ngIf="product.prevprice > 0">&#8377;{{product.prevprice}}</span>
+                            <span class="text-lg font-black text-gray-900 dark:text-white">&#8377;{{product.price}}</span>
+                        </div>
+                    </div>
+
+                    <div class="pt-2">
+                        <ng-container *ngIf="product.stock == 'In stock'; else unavailable">
+                            <button 
+                                *ngIf="!isProductInCart(product)"
+                                (click)="addToCart(product)"
+                                class="w-full py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-bold rounded-xl hover:bg-blue-600 dark:hover:bg-blue-500 dark:hover:text-white transition-all duration-300 flex items-center justify-center gap-2"
+                            >
+                                <i class="fa-solid fa-bag-shopping"></i>
+                                Add to Cart
+                            </button>
+                            <button 
+                                *ngIf="isProductInCart(product)"
+                                (click)="removeFromCart(product)"
+                                class="w-full py-3 bg-red-50 text-red-600 text-xs font-bold rounded-xl hover:bg-red-600 hover:text-white transition-all duration-300 flex items-center justify-center gap-2"
+                            >
+                                <i class="fa-solid fa-trash"></i>
+                                Remove
+                            </button>
+                        </ng-container>
+                        <ng-template #unavailable>
+                            <div class="w-full py-3 bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 text-[10px] font-bold text-center rounded-xl uppercase tracking-widest">
+                                Coming Soon
+                            </div>
                         </ng-template>
-                        
-                        <button 
-                        aria-label="add to wishlist"
-                        class="bg-white border border-gray-300 rounded h-[35px] w-[35px] hover:bg-gray-100"
-                        title="Add to Wishlist"
-                        >
-                            <i class="fa-regular fa-heart"></i>
-                        </button>
                     </div>
                 </div>
             </div>

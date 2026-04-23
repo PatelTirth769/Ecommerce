@@ -1242,5 +1242,13 @@ export class CartService {
     this.getTotal();
     void this.persistCart(this.cart).subscribe();
   }
+  public clearCart(): void {
+    this.cart = [];
+    this.products.next(this.cart);
+    this.createEmptyTotals();
+    this.setStoredQuotationName(null);
+    this.setRemovedCartKeys(new Set<string>());
+    this.resetManualCouponState();
+  }
   
 }

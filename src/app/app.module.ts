@@ -20,6 +20,12 @@ import { SharedModule } from './shared/shared.module';
 import { ProductMasterComponent } from './core/components/product-master/product-master.component';
 import { SellerScreenComponent } from './core/components/seller-screen/seller-screen.component';
 import { SellerRegistrationComponent } from './core/components/seller-registration/seller-registration.component';
+import { BuyerProfileComponent } from './core/components/buyer-profile/buyer-profile.component';
+import { environment } from '../environments/environment';
+import { AngularFireModule } from '@angular/fire/compat';
+import { AngularFireAuthModule } from '@angular/fire/compat/auth';
+import { AngularFirestoreModule } from '@angular/fire/compat/firestore';
+
 @NgModule({
   declarations: [
     AppComponent,
@@ -36,7 +42,8 @@ import { SellerRegistrationComponent } from './core/components/seller-registrati
     SearchComponent,
     ProductMasterComponent,
     SellerScreenComponent,
-    SellerRegistrationComponent
+    SellerRegistrationComponent,
+    BuyerProfileComponent
   ],
   imports: [
     BrowserModule,
@@ -44,7 +51,10 @@ import { SellerRegistrationComponent } from './core/components/seller-registrati
     FormsModule, 
     ReactiveFormsModule,
     AppRoutingModule,
-    SharedModule
+    SharedModule,
+    AngularFireModule.initializeApp(environment.firebase),
+    AngularFireAuthModule,
+    AngularFirestoreModule
   ],
   providers: [
     {

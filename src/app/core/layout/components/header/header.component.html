@@ -1,142 +1,127 @@
-<header class="mb-4">
-  <nav class="px-2 md:px-6 lg:px-10 md:py-2">
-    <div class="flex justify-between items-center pt-2 md:pt-0">
-        <a routerLink="/" class="flex flex-col items-center cursor-pointer">
-          <img src="assets/images/logo.png" alt="brand" class="w-[40px] md:w-[50px]" />
-          <span class="text-sm font-semibold text-white bg-[#3c64a9] px-3 rounded rotate-6 hidden md:block">
-            Sale24x7
-          </span>
+
+<header class="sticky top-0 z-[100] w-full transition-all duration-300 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border-b border-gray-100 dark:border-gray-800 shadow-sm">
+  <nav class="container mx-auto px-4 md:px-6 lg:px-8 py-2">
+    <div class="flex justify-between items-center">
+        <!-- Logo Area -->
+        <a routerLink="/" class="group flex items-center gap-2 cursor-pointer">
+          <div class="relative">
+            <img src="assets/images/logo.png" alt="brand" class="w-8 md:w-9 transform group-hover:scale-105 transition-transform duration-300" />
+            <div class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full"></div>
+          </div>
+          <div class="flex flex-col">
+            <span class="text-lg font-black tracking-tighter text-gray-900 dark:text-white leading-none">
+              Sale<span class="text-blue-600">24x7</span>
+            </span>
+            <span class="text-[8px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">Premium Shop</span>
+          </div>
         </a>
       
-      <div class="">
-        <ul class="top-nav-menu">
-          <li class="top-nav-menu-item">
-            <a
-              class="mr-4 py-1 flex-col md:flex-row"
-              [routerLink]="['/wishlist']"
-            >
-              <i title="Wishlist" class="fa-regular fa-heart"></i>
-              <span class="md:hidden text-xs">Wishlist</span>
+        <!-- Desktop Navigation -->
+        <div class="hidden md:flex items-center gap-1">
+          <ul class="flex items-center gap-4 mr-4 border-r border-gray-200 dark:border-gray-700 pr-4">
+            <li *ngFor="let menu of menulist">
+              <a
+                [routerLink]="[menu.path]"
+                [routerLinkActive]="['text-blue-600', 'font-bold']"
+                [routerLinkActiveOptions]="{exact: true}"
+                class="text-[13px] font-semibold text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200 uppercase tracking-wide"
+              >
+                {{menu.title}}
+              </a>
+            </li>
+          </ul>
+
+          <div class="flex items-center gap-1.5">
+            <a [routerLink]="['/wishlist']" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 hover:text-blue-600 transition-all duration-200 relative group">
+              <i class="fa-regular fa-heart text-lg"></i>
             </a>
-          </li>
-          <li class="top-nav-menu-item">
-            <a class="relative mr-4 py-1 flex-col md:flex-row" [routerLink]="['/shopping-cart']">
-              <i title="Shopping Cart" class="fa-solid fa-bag-shopping"></i>
-              <span class="md:hidden text-xs">Cart</span>
-              <span 
-              *ngIf="cart.length>0" 
-              class="absolute inline-flex items-center justify-center w-6 h-6 text-xs font-bold text-white bg-gray-800 border-2 border-white rounded-full -top-2 -right-2 dark:border-gray-900">
+            
+            <a [routerLink]="['/shopping-cart']" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 hover:text-blue-600 transition-all duration-200 relative">
+              <i class="fa-solid fa-bag-shopping text-lg"></i>
+              <span *ngIf="cart.length>0" class="absolute top-0 right-0 w-4 h-4 bg-blue-600 text-white text-[9px] font-bold flex items-center justify-center rounded-full border-2 border-white dark:border-gray-900">
                 {{cart.length}}
               </span>
             </a>
-          </li>
-          <li class="top-nav-menu-item" *ngIf="!authService.isLoggedIn()">
-            <a class="py-1 flex-col md:flex-row" [routerLink]="['/login']">
-              <i title="Login" class="fa-regular fa-user"></i>
-              <span class="md:hidden text-xs">Login</span>
+
+            <div class="h-6 w-[1px] bg-gray-200 dark:bg-gray-700 mx-1.5"></div>
+
+            <a [routerLink]="['/seller-screen']" class="px-4 py-1.5 border-2 border-blue-600 text-blue-600 dark:text-blue-400 text-xs font-bold rounded-lg hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white transition-all duration-300">
+                Seller
             </a>
-          </li>
-          <li class="top-nav-menu-item" *ngIf="authService.isLoggedIn()">
-            <button class="py-1 flex-col md:flex-row" (click)="logOut()">
-              <i title="Logout" class="fa-solid fa-arrow-right-from-bracket"></i>
-              <span class="text-xs">Logout</span>
-            </button>
-          </li>
-        </ul>
-      </div>
-    </div>
-    <div class="mt-6 border-b border-gray-300 hidden md:block">
-      <ul class="bottom-nav-menu text-md uppercase">
-        <li class="bottom-nav-menu-item" *ngFor="let menu of menulist">
-          <a
-            class="px-2 py-1 transition-all duration-900"
-            [routerLink]="[menu.path]"
-            [routerLinkActive]="['active-link']"
-            [attr.aria-label]="menu.title+' '+'link'"
-          >
-          {{menu.title}}
-          </a>
-        </li>
-      </ul>
-    </div>
-  </nav>
-  <div class="flex justify-end items-center px-1 md:px-10 w-full">
-    <div class="block md:hidden flex items-center gap-2 mr-2 cursor-pointer" (click)="openMenu()">
-      <i class="fa-sharp fa-solid fa-bars text-md"></i>
-      MENU
+
+            <ng-container *ngIf="!(authService.isLoggedIn$ | async)">
+              <a [routerLink]="['/login']" class="px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-bold rounded-lg hover:bg-blue-600 dark:hover:bg-blue-500 dark:hover:text-white transition-all duration-300 shadow-sm">
+                Sign In
+              </a>
+            </ng-container>
+
+            <ng-container *ngIf="(authService.isLoggedIn$ | async)">
+              <a [routerLink]="['/profile']" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 hover:text-blue-600 transition-all duration-200 relative group mr-1">
+                <i class="fa-solid fa-user text-lg"></i>
+              </a>
+              <button (click)="logOut()" class="p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-600 dark:text-gray-400 hover:text-red-600 transition-all duration-200">
+                <i class="fa-solid fa-arrow-right-from-bracket text-lg"></i>
+              </button>
+            </ng-container>
+          </div>
+        </div>
+
+        <!-- Mobile Menu Toggle -->
+        <button class="md:hidden p-1.5 text-gray-600 dark:text-gray-400 hover:text-blue-600 transition-colors" (click)="openMenu()">
+          <i class="fa-solid fa-bars-staggered text-xl"></i>
+        </button>
     </div>
 
-    <div class="fixed top-0 left-0 w-[350px] z-[99] h-full drop-shadow-lg bg-white block md:hidden" *ngIf="isMenu">
-      <div class="h-full">
-        <button class="absolute right-4 flex items-center" (click)="closeMenu()">
-          CLOSE <i class="fa-solid fa-xmark text-xl"></i>
-        </button>
-        <ul class="pt-12 flex flex-col gap-5 text-md uppercase">
-          <li class="bottom-nav-menu-item" *ngFor="let menu of menulist">
+    <!-- Search Bar (Integrated) -->
+    <div class="mt-2 flex justify-center">
+      <div class="w-full max-w-xl relative group">
+        <app-search></app-search>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Mobile Sidebar Menu -->
+  <ng-container *ngIf="isMenu">
+    <div class="fixed inset-0 z-[110] bg-black/60 backdrop-blur-sm transition-opacity" (click)="closeMenu()"></div>
+    <div class="fixed top-0 right-0 bottom-0 w-[85%] max-w-[320px] z-[120] bg-white dark:bg-gray-900 shadow-2xl transition-transform transform translate-x-0 overflow-y-auto">
+      <div class="p-6">
+        <div class="flex items-center justify-between mb-8">
+          <span class="text-xl font-bold dark:text-white">Menu</span>
+          <button (click)="closeMenu()" class="p-2 text-gray-400 hover:text-red-500 transition-colors">
+            <i class="fa-solid fa-xmark text-2xl"></i>
+          </button>
+        </div>
+
+        <ul class="space-y-2">
+          <li *ngFor="let menu of menulist">
             <a
-              class="px-4 py-1 border-b-2 block hover:pl-12 transition-all duration-1000"
               [routerLink]="[menu.path]"
-              [routerLinkActive]="['active-link']"
-             [attr.aria-label]="menu.title+' '+'link'"
-             (click)="closeMenu()"
+              [routerLinkActive]="['bg-blue-50', 'text-blue-600', 'dark:bg-blue-900/20']"
+              [routerLinkActiveOptions]="{exact: true}"
+              class="flex items-center px-4 py-3 rounded-xl text-gray-700 dark:text-gray-300 font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
+              (click)="closeMenu()"
             >
               {{menu.title}}
             </a>
           </li>
         </ul>
+
+        <div class="mt-8 pt-8 border-t border-gray-100 dark:border-gray-800">
+          <ng-container *ngIf="!(authService.isLoggedIn$ | async)">
+            <a [routerLink]="['/login']" (click)="closeMenu()" class="flex items-center justify-center w-full py-4 bg-blue-600 text-white font-bold rounded-2xl shadow-lg">
+              Sign In
+            </a>
+          </ng-container>
+          <ng-container *ngIf="(authService.isLoggedIn$ | async)">
+            <a [routerLink]="['/profile']" (click)="closeMenu()" class="flex items-center justify-center w-full py-4 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-bold rounded-2xl mb-3 transition-all">
+              My Profile
+            </a>
+            <button (click)="logOut(); closeMenu()" class="flex items-center justify-center w-full py-4 bg-red-50 dark:bg-red-900/20 text-red-600 font-bold rounded-2xl transition-all">
+              Sign Out
+            </button>
+          </ng-container>
+        </div>
       </div>
     </div>
-    <!-- <div
-      class="relative md:mb-4 flex w-full md:w-[300px] transition-all duration-300 bg-transparent focus-within:w-full border-2 focus-within:border-gray-600 rounded"
-    >
-      <span
-        class="input-group-text flex items-center whitespace-nowrap rounded bg-white px-3 py-1.5 text-center text-base font-normal text-neutral-700 dark:text-neutral-200"
-        id="basic-addon2"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 20 20"
-          fill="currentColor"
-          class="h-5 w-5"
-        >
-          <path
-            fill-rule="evenodd"
-            d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z"
-            clip-rule="evenodd"
-          />
-        </svg>
-      </span>
-      <input
-        type="search"
-        name="seach"
-        placeholder="Search products..."
-        aria-label="Search"
-        class="relative m-0 block w-[1px] min-w-0 flex-auto focus:z-[3] p-2 md:p-3 outline-none rounded w-full"
-      />
-      
-    </div> -->
-
-    <div class="relative md:mb-4 w-full md:w-[300px] transition-all duration-300 bg-transparent focus-within:w-full border-2 focus-within:border-gray-600 rounded">
-      <app-search></app-search>
-    </div>
-  </div>
-
-  <nav>
-    <div class="mt-2 border-b border-gray-300 md:hidden">
-      <ul class="flex justify-start flex-wrap text-xs uppercase px-2">
-        <li class="my-2" *ngFor="let menu of menulist">
-          <a
-            class="px-1 py-1 transition-all duration-900"
-            [routerLink]="[menu.path]"
-            [routerLinkActive]="['active-link']"
-            [attr.aria-label]="menu.title+' '+'link'"
-          >
-          {{menu.title}}
-          </a>
-        </li>
-      </ul>
-    </div>
-  </nav>
-
-
+  </ng-container>
 </header>

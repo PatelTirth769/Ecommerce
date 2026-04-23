@@ -11,6 +11,7 @@ import { SearchresultComponent } from './core/components/searchresult/searchresu
 import { ProductMasterComponent } from './core/components/product-master/product-master.component';
 import { SellerScreenComponent } from './core/components/seller-screen/seller-screen.component';
 import { SellerRegistrationComponent } from './core/components/seller-registration/seller-registration.component';
+import { BuyerProfileComponent } from './core/components/buyer-profile/buyer-profile.component';
 
 const routes: Routes = [
   {
@@ -58,6 +59,10 @@ const routes: Routes = [
   {
     path: 'register-seller',
     component: SellerRegistrationComponent
+  },
+  {
+    path: 'profile',
+    component: BuyerProfileComponent
   },
   {
     path:'**',

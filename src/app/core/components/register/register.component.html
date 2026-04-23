@@ -1,44 +1,122 @@
 
-<div class="mt-5 p-3 max-w-[430px] min-w-[380px] mx-auto bg-white shadow-lg ">
-    <h4 class="py-4 text-gray-700 text-xl text-center font-semibold border-b">Register</h4>
-    <div class="mt-5">
-        <form>
-            <div class="flex flex-col md:flex-row">
-                <div class="mb-6">
-                <label for="firstname" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">First Name</label>
-                <input type="text" id="firstname" class="shadow-sm bg-gray-50 border border-gray-300 text-gray-900 text-sm  focus:ring-gray-500 focus:border-gray-500 block w-full p-2.5 outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-gray-500 focus:border-2 dark:focus:border-gray-500 dark:shadow-sm-light" placeholder="David" required>
-                </div>
-                <div class="mb-6">
-                <label for="lastname" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Last Name</label>
-                <input type="text" id="lastname" class="shadow-sm bg-gray-50 border border-gray-300 text-gray-900 text-sm  focus:ring-gray-500 focus:border-gray-500 block w-full p-2.5 outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-gray-500 focus:border-2 dark:focus:border-gray-500 dark:shadow-sm-light" placeholder="Paul" required>
-                </div>
-            </div>
-            <div class="mb-6">
-                <label for="email" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Email</label>
-                <input type="email" id="email" class="shadow-sm bg-gray-50 border border-gray-300 text-gray-900 text-sm  focus:ring-gray-500 focus:border-gray-500 block w-full p-2.5 outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-gray-500 focus:border-2 dark:focus:border-gray-500 dark:shadow-sm-light" placeholder="davidpaul@test.com" required>
-              </div>
-              <div class="mb-6">
-                <label for="password" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Password</label>
-                <input type="password" id="password" class="shadow-sm bg-gray-50 border border-gray-300 text-gray-900 text-sm  focus:ring-gray-500 focus:border-gray-500 block w-full p-2.5 outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-gray-500 focus:border-2 dark:focus:border-gray-500 dark:shadow-sm-light" required>
-              </div>
-            <div class="mb-6">
-              <label for="repeat-password" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Repeat password</label>
-              <input type="password" id="repeat-password" class="shadow-sm bg-gray-50 border border-gray-300 text-gray-900 text-sm  focus:ring-gray-500 focus:border-gray-500 block w-full p-2.5 outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-gray-500 focus:border-2 dark:focus:border-gray-500 dark:shadow-sm-light" required>
-            </div>
-            <div class="flex items-start mb-6">
-              <div class="flex items-center h-5">
-                <input id="terms" type="checkbox" value="" class="w-4 h-4 border border-gray-300 rounded bg-gray-50 focus:ring-3 focus:ring-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:focus:ring-gray-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800" required>
-              </div>
-              <label for="terms" class="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300">I agree with the <a href="#" class="text-gray-600 hover:underline dark:text-gray-500">terms and conditions</a></label>
-            </div>
-            <button type="submit" class="text-white bg-[#3c64a9] hover:bg-[#3c64a9] focus:ring-4 focus:outline-none focus:ring-[#3c64a9]-300 font-medium  text-sm px-5 py-3 text-center dark:bg-gray-600 dark:hover:bg-gray-700 dark:focus:ring-gray-800 w-full">Register </button>
-            <p class="mt-4 text-sm">
-                Already a member
-                <a [routerLink]="['/login']" class="text-gray-600 hover:underline dark:text-gray-500">Login</a>
-            </p>
-          </form>
+<div class="mt-10 mb-10 p-8 max-w-[720px] mx-auto bg-white dark:bg-gray-800 shadow-2xl rounded-2xl border border-gray-100 dark:border-gray-700 transition-all duration-300">
+    <div class="text-center mb-8">
+        <h2 class="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Create Account</h2>
+        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Join us and start shopping today</p>
     </div>
 
+    <div *ngIf="errorMessage" class="mb-6 p-4 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm font-semibold">
+        {{ errorMessage }}
+    </div>
+    
+    <form [formGroup]="registerForm" (ngSubmit)="onSubmit()" class="space-y-6">
+        <!-- Name -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label for="firstname" class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">First Name</label>
+                <input type="text" id="firstname" formControlName="firstname"
+                    class="block w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500" 
+                    placeholder="David">
+            </div>
+            <div>
+                <label for="lastname" class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Last Name</label>
+                <input type="text" id="lastname" formControlName="lastname"
+                    class="block w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500" 
+                    placeholder="Paul">
+            </div>
+        </div>
+
+        <!-- Contact Info -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label for="email" class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Email Address</label>
+                <input type="email" id="email" formControlName="email"
+                    class="block w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500" 
+                    placeholder="davidpaul@example.com">
+            </div>
+            <div>
+                <label for="mobile" class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Mobile Number</label>
+                <input type="tel" id="mobile" formControlName="mobile"
+                    class="block w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500" 
+                    placeholder="+91 9876543210">
+            </div>
+        </div>
+
+        <!-- Identity Docs -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label for="pan" class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">PAN Number</label>
+                <input type="text" id="pan" formControlName="pan"
+                    class="block w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500" 
+                    placeholder="ABCDE1234F">
+            </div>
+            <div>
+                <label for="aadhar" class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Aadhaar Number</label>
+                <input type="text" id="aadhar" formControlName="aadhar"
+                    class="block w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500" 
+                    placeholder="1234 5678 9012">
+            </div>
+        </div>
+
+        <!-- Location -->
+        <div>
+            <label for="address" class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Address</label>
+            <input type="text" id="address" formControlName="address"
+                class="block w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500" 
+                placeholder="123 Street Name, Apartment/Suite">
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label for="city" class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">City</label>
+                <input type="text" id="city" formControlName="city"
+                    class="block w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500" 
+                    placeholder="Mumbai">
+            </div>
+            <div>
+                <label for="pincode" class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Pincode</label>
+                <input type="text" id="pincode" formControlName="pincode"
+                    class="block w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500" 
+                    placeholder="400001">
+            </div>
+        </div>
+
+        <!-- Security -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label for="password" class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Password</label>
+                <input type="password" id="password" formControlName="password"
+                    class="block w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500" 
+                    placeholder="••••••••">
+            </div>
+            <div>
+                <label for="confirmPassword" class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Confirm Password</label>
+                <input type="password" id="confirmPassword" formControlName="confirmPassword"
+                    class="block w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500" 
+                    placeholder="••••••••">
+                <p *ngIf="registerForm.hasError('mismatch') && registerForm.get('confirmPassword')?.touched" class="text-xs text-red-500 mt-1">Passwords do not match</p>
+            </div>
+        </div>
+
+        <div class="flex items-center pt-2">
+            <input id="terms" type="checkbox" formControlName="terms"
+                class="w-4 h-4 text-blue-600 bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 focus:ring-2 transition-colors cursor-pointer">
+            <label for="terms" class="ml-3 text-sm font-medium text-gray-600 dark:text-gray-300">
+                I agree with the <a href="#" class="text-blue-600 hover:text-blue-700 dark:text-blue-400 font-semibold hover:underline transition-all">Terms and Conditions</a>
+            </label>
+        </div>
+
+        <button type="submit" [disabled]="isLoading"
+            class="w-full flex justify-center items-center py-3.5 px-4 border border-transparent rounded-xl shadow-lg text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70 disabled:cursor-not-allowed">
+            <i *ngIf="isLoading" class="fa-solid fa-spinner fa-spin mr-2"></i>
+            {{ isLoading ? 'Creating Account...' : 'Create Account' }}
+        </button>
+
+        <p class="text-center text-sm text-gray-600 dark:text-gray-400 mt-6">
+            Already a member? 
+            <a [routerLink]="['/login']" class="font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 hover:underline transition-all">Sign In</a>
+        </p>
+    </form>
 </div>
   
 
