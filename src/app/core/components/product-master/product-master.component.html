@@ -1,0 +1,121 @@
+<section class="w-full flex-1">
+  <article class="mb-5">
+    <div class="max-w-[1280px] mx-auto px-4 md:px-6 py-6">
+
+      <!-- Loading State -->
+      <div class="flex justify-center py-12" *ngIf="isLoading">
+        <div class="text-gray-600">
+          <i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading ERP products...
+        </div>
+      </div>
+
+      <!-- Error State -->
+      <div *ngIf="errorMessage && !isLoading" class="mb-6 p-4 rounded border border-red-300 bg-red-50 text-red-700 flex items-start gap-3">
+        <i class="fa-solid fa-circle-exclamation text-xl mt-0.5"></i>
+        <div>
+          <p class="font-semibold">Unable to Load Products</p>
+          <p class="text-sm mt-1">{{ errorMessage }}</p>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div *ngIf="!isLoading && !errorMessage && items.length === 0" class="flex justify-center py-12">
+        <div class="text-gray-500 text-center">
+          <i class="fa-solid fa-inbox text-4xl mb-3 block opacity-50"></i>
+          <p>No product found in ERP Website Item.</p>
+        </div>
+      </div>
+
+      <!-- Product Grid - Same layout as home page -->
+      <div *ngIf="!isLoading && items.length > 0" class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-5">
+        <article *ngFor="let item of items" class="relative flex flex-row justify-between mx-auto md:flex-col w-full max-w-md bg-white hover:border border-gray-300">
+          
+          <!-- Image Section -->
+          <a
+            [routerLink]="['/categories', 'product', getDetailIdentifier(item)]"
+            class="w-[50%] sm:w-[40%] md:w-full overflow-hidden"
+            title="View product details"
+          >
+            <img 
+              class="transition-all duration-500 hover:scale-110"
+              [src]="getImage(item)" 
+              [alt]="getDisplayName(item)"
+              (error)="onImageError($event)"
+            />
+          </a>
+          
+          <!-- Content Section -->
+          <div class="flex flex-col justify-stretch self-center p-5 md:p-2 w-[60%] md:w-full">
+            <h5 class="mb-2 font-semibold text-sm tracking-tight text-gray-900">
+              {{ getDisplayName(item) | slice:0:45 }}
+            </h5>
+
+            <!-- Product Code/ID -->
+            <p class="text-xs text-gray-600 mb-2">
+              Code: <span class="font-medium">{{ item.name }}</span>
+            </p>
+
+            <!-- Description if available -->
+            <p class="text-xs text-gray-500 line-clamp-2 mb-2" *ngIf="item.description">
+              {{ item.description }}
+            </p>
+
+            <p class="text-lg font-semibold text-gray-900 mb-2" *ngIf="getPrice(item) > 0">
+              &#8377; {{ getPrice(item) | number:'1.2-2' }}
+              <span class="text-sm text-gray-500"> / {{ getUom(item) }}</span>
+            </p>
+
+            <!-- Modified Date -->
+            <p class="text-xs text-gray-400 mb-3" *ngIf="item.modified">
+              <i class="fa-solid fa-clock mr-1"></i>{{ item.modified | date: 'short' }}
+            </p>
+
+            <button
+              *ngIf="isItemInCart(item); else addtocart"
+              class="px-4 py-2 bg-red-700 text-gray-200 w-full rounded mb-2"
+              (click)="removeFromCart(item)"
+              aria-label="Remove from Cart"
+            >
+              <i class="fa-solid fa-trash mr-2"></i>Remove
+            </button>
+
+            <ng-template #addtocart>
+              <button
+                *ngIf="item.published && !isOutOfStock(item); else unavailable"
+                class="px-4 py-2 bg-gray-800 text-gray-200 w-full rounded mb-2"
+                (click)="addToCart(item)"
+                aria-label="Add to Cart"
+              >
+                <i class="fa-solid fa-bag-shopping mr-2"></i>Add to Cart
+              </button>
+            </ng-template>
+
+            <ng-template #unavailable>
+              <div class="px-4 py-2 bg-yellow-600 text-center text-gray-200 w-full cursor-not-allowed rounded mb-2">
+                Available soon
+              </div>
+            </ng-template>
+
+            <!-- Stock/Wishlist Badge (top right) -->
+            <div class="absolute top-2 left-5 md:right-5 flex justify-end gap-4 items-center">
+              <span 
+                *ngIf="item.published"
+                class="bg-green-600 text-white text-center text-xs p-1 rounded px-2"
+              >
+                Published
+              </span>
+              
+              <button 
+                aria-label="add to wishlist"
+                class="bg-white border border-gray-300 rounded h-[35px] w-[35px] flex items-center justify-center hover:border-red-500 hover:text-red-500 transition-colors"
+                title="Add to Wishlist"
+              >
+                <i class="fa-regular fa-heart"></i>
+              </button>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </article>
+</section>

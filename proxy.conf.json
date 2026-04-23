@@ -1,0 +1,14 @@
+{
+  "/all-products": {
+    "target": "https://ketty.hrhovercraft.in",
+    "secure": false,
+    "changeOrigin": true,
+    "logLevel": "debug"
+  },
+  "/api/*": {
+    "target": "https://ketty.hrhovercraft.in",
+    "secure": false,
+    "changeOrigin": true,
+    "logLevel": "debug"
+  }
+}

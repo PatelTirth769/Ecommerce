@@ -1,0 +1,305 @@
+<section class="seller-form-page">
+  <div class="top-head">
+    <a routerLink="/" class="logo-link">
+      <img src="assets/images/logo.png" alt="Sale24x7" />
+    </a>
+    <h1>Seller Registration</h1>
+  </div>
+
+  <div *ngIf="loading" class="loading-overlay">
+    <div class="loader">Loading...</div>
+  </div>
+
+  <form [formGroup]="sellerForm" (ngSubmit)="onSubmit()" novalidate>
+    <div class="card">
+      <h2>Identity Verification</h2>
+
+      <div class="grid two">
+        <label>
+          PAN No.
+          <input type="text" formControlName="panNo" placeholder="ABCDE1234F" />
+        </label>
+
+        <div class="action-row">
+          <button type="button" class="btn info" (click)="verifyPAN()" [disabled]="isPanVerified">Verify PAN</button>
+          <p class="ok" *ngIf="panVerMsg">{{ panVerMsg }}</p>
+        </div>
+      </div>
+
+      <div class="grid two">
+        <label>
+          Aadhaar Number
+          <input type="text" formControlName="aadharNo" maxlength="12" placeholder="12-digit Aadhaar" />
+        </label>
+
+        <div class="action-row">
+          <button type="button" class="btn danger" (click)="sendAadharOTP()" [disabled]="isAadharVerified">Send Aadhaar OTP</button>
+        </div>
+      </div>
+
+      <div class="grid two" *ngIf="mobileOtpSent && !isAadharVerified">
+        <label>
+          Aadhaar OTP
+          <input type="text" formControlName="aadharOtp" placeholder="Enter OTP" />
+        </label>
+        <div class="action-row">
+          <button type="button" class="btn info" (click)="verifyAadharOTP()">Verify Aadhaar</button>
+        </div>
+      </div>
+      <p class="msg" *ngIf="aadharVerMsg">{{ aadharVerMsg }}</p>
+
+      <label class="gst-toggle">
+        <input type="checkbox" formControlName="isGstRegistered" />
+        <span>Are you GST registered?</span>
+      </label>
+
+      <div *ngIf="sellerForm.get('isGstRegistered')?.value" class="grid two">
+        <label>
+          GST Number
+          <input type="text" formControlName="gstNo" placeholder="GSTIN" />
+        </label>
+        <div class="action-row">
+          <button type="button" class="btn danger" (click)="verifyGST()">Verify GST</button>
+          <p class="ok" *ngIf="gstVerMsg">{{ gstVerMsg }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Bank Details</h2>
+
+      <div class="grid two">
+        <label>
+          Account Number
+          <input type="text" formControlName="bankAccountNo" placeholder="Bank account number" />
+        </label>
+
+        <label>
+          IFSC Code
+          <input type="text" formControlName="bankIFSCCode" placeholder="IFSC code" />
+        </label>
+      </div>
+
+      <div class="action-row">
+        <button type="button" class="btn danger" (click)="verifyBank()" [disabled]="isBankVerified">Verify Bank Details</button>
+        <p class="ok" *ngIf="bankVerMsg">{{ bankVerMsg }}</p>
+      </div>
+
+      <div class="grid two">
+        <label>
+          Account Holder Name
+          <input type="text" formControlName="bankAccountName" placeholder="Account holder name" />
+        </label>
+
+        <label>
+          Bank Name
+          <input type="text" formControlName="bankName" placeholder="Bank name" />
+        </label>
+      </div>
+
+      <label>
+        Branch Name
+        <input type="text" formControlName="bankBranch" placeholder="Branch" />
+      </label>
+    </div>
+
+    <div class="card">
+      <h2>Document Uploads</h2>
+      <div class="grid four">
+        <label class="upload-box">
+          Profile Photo
+          <input type="file" accept=".jpg,.jpeg,.png,.pdf" (change)="selectPhoto($event, 'profilePhotoData', 'profilePhoto')" />
+          <img *ngIf="profilePhoto" [src]="profilePhoto" alt="Profile" />
+        </label>
+
+        <label class="upload-box">
+          PAN Card
+          <input type="file" accept=".jpg,.jpeg,.png,.pdf" (change)="selectPhoto($event, 'panPhotoData', 'panPhoto')" />
+          <img *ngIf="panPhoto" [src]="panPhoto" alt="PAN" />
+        </label>
+
+        <label class="upload-box">
+          Aadhaar Card
+          <input type="file" accept=".jpg,.jpeg,.png,.pdf" (change)="selectPhoto($event, 'aadharPhotoData', 'aadharPhoto')" />
+          <img *ngIf="aadharPhoto" [src]="aadharPhoto" alt="Aadhaar" />
+        </label>
+
+        <label class="upload-box">
+          Bank Cheque
+          <input type="file" accept=".jpg,.jpeg,.png,.pdf" (change)="selectPhoto($event, 'bankCancelChqPhotoData', 'bankChequePhoto')" />
+          <img *ngIf="bankChequePhoto" [src]="bankChequePhoto" alt="Cheque" />
+        </label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Personnel Details</h2>
+
+      <div class="grid two">
+        <label>
+          First Name
+          <input type="text" formControlName="firstName" />
+        </label>
+
+        <label>
+          Last Name
+          <input type="text" formControlName="lastName" />
+        </label>
+      </div>
+
+      <div class="grid two">
+        <label>
+          Father/Husband Name
+          <input type="text" formControlName="fatherHusbandName" />
+        </label>
+
+        <label>
+          Relation
+          <select formControlName="fatherHusbandRelation">
+            <option value="F">Father</option>
+            <option value="H">Husband</option>
+          </select>
+        </label>
+      </div>
+
+      <label>
+        Gender
+        <select formControlName="gender">
+          <option value="">Select gender</option>
+          <option value="M">Male</option>
+          <option value="F">Female</option>
+          <option value="O">Other</option>
+        </select>
+      </label>
+
+      <div class="grid two">
+        <label>
+          Mobile Number
+          <input type="text" formControlName="mobile" placeholder="10-digit mobile" maxlength="10" />
+        </label>
+
+        <div class="action-row">
+          <button type="button" class="btn danger" (click)="sendOTP()" [disabled]="isMobileVerified">Send Mobile OTP</button>
+        </div>
+      </div>
+
+      <div class="grid two" *ngIf="mobileOtpSent && !isMobileVerified">
+        <label>
+          Mobile OTP
+          <input type="text" formControlName="otp" maxlength="6" />
+        </label>
+        <div class="action-row">
+          <button type="button" class="btn info" (click)="verifyOTP()">Verify Mobile</button>
+        </div>
+      </div>
+      <p class="ok" *ngIf="mobileVerMsg">{{ mobileVerMsg }}</p>
+
+      <div class="grid two">
+        <label>
+          Email Address
+          <input type="email" formControlName="email" />
+        </label>
+
+        <div class="action-row">
+          <button type="button" class="btn danger" (click)="sendMailOTP()" [disabled]="isMailVerified">Send Email OTP</button>
+        </div>
+      </div>
+
+      <div class="grid two" *ngIf="mailOtpSent && !isMailVerified">
+        <label>
+          Email OTP
+          <input type="text" formControlName="mailOtp" maxlength="6" />
+        </label>
+        <div class="action-row">
+          <button type="button" class="btn info" (click)="verifyMailOTP()">Verify Email</button>
+        </div>
+      </div>
+      <p class="ok" *ngIf="mailVerMsg">{{ mailVerMsg }}</p>
+
+      <label>
+        Address
+        <textarea rows="3" formControlName="addressLine1" placeholder="Address"></textarea>
+      </label>
+
+      <div class="grid three">
+        <label>
+          City
+          <select formControlName="cityId" (change)="onCityChange($any($event.target).value)">
+            <option value="">Select city</option>
+            <option *ngFor="let city of cities" [value]="city.cityId">{{ city.cityName }}</option>
+          </select>
+        </label>
+
+        <label>
+          Pincode
+          <input type="text" formControlName="pincode" maxlength="6" />
+        </label>
+
+        <label>
+          T-Shirt Size
+          <select formControlName="tshirtSize">
+            <option value="">Select size</option>
+            <option value="small">Small</option>
+            <option value="medium">Medium</option>
+            <option value="large">Large</option>
+            <option value="extra_large">Extra Large</option>
+          </select>
+        </label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Referral Details</h2>
+      <div class="grid two">
+        <label>
+          Referral ID
+          <input type="text" formControlName="referralId" placeholder="Referral user ID" />
+        </label>
+        <div class="action-row">
+          <button type="button" class="btn info" (click)="verifyReferralId()" [disabled]="isReferralVerified">Verify Referral ID</button>
+          <p class="ok" *ngIf="referralVerMsg">{{ referralVerMsg }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card terms-card">
+      <h2>Terms and Conditions</h2>
+      <div class="terms-content-wrap">
+        <ul class="terms-list">
+          <li *ngFor="let term of termsAndConditions">{{ term }}</li>
+        </ul>
+
+        <label class="terms-agree">
+          <input type="checkbox" formControlName="agreedToTerms" />
+          <span>I have read and agree to the Terms and Conditions.</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="card payment-card">
+      <h2>Payment Details</h2>
+      <div class="payment-switch">
+        <label class="payment-option" [class.active]="paymentMethod === 'online'">
+          <input type="radio" name="paymentMode" [checked]="paymentMethod === 'online'" (change)="onPaymentMethodChange('online')" />
+          <span>Pay Online</span>
+        </label>
+
+        <label class="payment-option" [class.active]="paymentMethod === 'cheque'">
+          <input type="radio" name="paymentMode" [checked]="paymentMethod === 'cheque'" (change)="onPaymentMethodChange('cheque')" />
+          <span>Pay by Cheque</span>
+        </label>
+      </div>
+
+      <div *ngIf="paymentMethod === 'cheque'">
+        <label>
+          Upload Cheque Image
+          <input type="file" accept="image/*" (change)="onChequeImageUpload($event)" />
+        </label>
+      </div>
+    </div>
+
+    <div class="submit-wrap">
+      <button type="submit" class="btn submit" [disabled]="loading">Submit Registration</button>
+    </div>
+  </form>
+</section>

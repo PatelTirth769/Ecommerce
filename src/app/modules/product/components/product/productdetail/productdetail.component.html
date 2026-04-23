@@ -1,0 +1,353 @@
+
+<section *ngIf="isLoading">
+
+  <article class="py-4">
+    <div role="status" class="grid grid-cols-1 md:grid-cols-2 space-y-8 animate-pulse md:space-y-0 md:space-x-8 md:flex md:items-center">
+      <div class="flex flex-col items-center justify-center col-span-2 md:col-span-1  w-full h-[60vh] bg-gray-300 rounded dark:bg-gray-700">
+          
+      </div>
+      <div class="col-span-1 md:col-span-1 md:px-6 lg:px-10 py-4 h-[60vh] w-full">
+          <div class="h-3 bg-gray-200 rounded-full dark:bg-gray-700 w-48 mb-4"></div>
+          <div class="h-4 bg-gray-200 rounded-full dark:bg-gray-700 max-w-[480px] mb-10"></div>
+
+          <div class="h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 w-48 mb-4"></div>
+          <div class="h-2 bg-gray-200 rounded-full dark:bg-gray-700 max-w-[480px] mb-2.5"></div>
+          <div class="h-2 bg-gray-200 rounded-full dark:bg-gray-700 mb-2.5"></div>
+          <div class="h-2 bg-gray-200 rounded-full dark:bg-gray-700 max-w-[440px] mb-2.5"></div>
+          <div class="h-2 bg-gray-200 rounded-full dark:bg-gray-700 max-w-[460px] mb-2.5"></div>
+          <div class="h-2 bg-gray-200 rounded-full dark:bg-gray-700 max-w-[360px]"></div>
+      </div>
+      <span class="sr-only">Loading...</span>
+    </div>
+  </article>
+
+  <article class="mt-25 mb-10 bg-white pt-5">
+    <h3 class="text-2xl font-semibold mb-5">RELATED PRODUCTS</h3>
+    <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 bg-white">
+        <app-cardskeleton></app-cardskeleton>
+        <app-cardskeleton></app-cardskeleton>
+        <app-cardskeleton></app-cardskeleton>
+        <app-cardskeleton></app-cardskeleton>
+        <app-cardskeleton></app-cardskeleton>
+
+    </div>
+  </article>
+
+</section>
+
+<section class="py-4 bg-white" *ngIf="!isLoading">
+  <app-breadcrumb></app-breadcrumb>
+
+  <article class="rounded-2xl border border-gray-200 bg-white p-4 md:p-6 lg:p-7 shadow-sm" *ngIf="isErpDetail">
+    <div class="grid grid-cols-1 lg:grid-cols-[minmax(300px,520px)_1fr] gap-6 lg:gap-9 items-start">
+      <div class="rounded-xl border border-gray-200 bg-white p-3 md:p-4">
+        <img class="mx-auto h-full max-h-[360px] w-full object-contain" [src]="imageSrc" [alt]="title">
+      </div>
+
+      <div class="py-1 lg:py-2">
+        <div class="flex items-start justify-between gap-4">
+          <div class="min-w-0">
+            <h1 class="text-2xl md:text-3xl font-semibold text-gray-900 mb-2 break-words">{{title}}</h1>
+            <p class="text-base md:text-lg text-gray-700 mb-4 break-words">
+              <span>{{product.category}}</span>
+              <span class="text-gray-400"> | </span>
+              <span>Item Code: {{product.type}}</span>
+            </p>
+            <p class="text-3xl md:text-4xl font-semibold text-gray-900 mb-4" *ngIf="product.price > 0">
+              &#8377; {{ product.price | number:'1.2-2' }}
+              <span class="text-gray-500 text-2xl md:text-3xl">(&#8377; {{ product.price | number:'1.2-2' }} / {{ erpUom || 'Nos' }})</span>
+            </p>
+            <p class="text-2xl md:text-3xl font-medium text-gray-800 mb-4">UOM : {{erpUom}}</p>
+          </div>
+          <button class="shrink-0 h-10 w-10 rounded-full border border-gray-200 text-red-400 hover:bg-red-50 transition-colors" title="Wishlist">
+            <i class="fa-regular fa-heart"></i>
+          </button>
+        </div>
+
+        <div class="mb-6 rounded-xl border border-amber-100 bg-amber-50/60 p-4" *ngIf="erpOffers.length > 0">
+          <h4 class="text-xl font-semibold text-gray-800 mb-3">
+            <i class="fa-solid fa-tags text-amber-500 mr-2"></i>
+            Available Offers
+          </h4>
+          <div class="space-y-3">
+            <div class="flex items-start gap-3" *ngFor="let offer of erpOffers">
+              <i class="fa-regular fa-star text-amber-500 mt-1"></i>
+              <div class="min-w-0">
+                <p class="text-gray-800 font-semibold text-base leading-6" *ngIf="offer.title">{{offer.title}}</p>
+                <p class="text-gray-700 text-base leading-6 break-words" *ngIf="offer.subtitle">{{offer.subtitle}}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="my-6 flex flex-col sm:flex-row gap-3">
+          <button
+            *ngIf="isProductInCart(product); else erpaddtocart"
+            class="rounded-lg bg-red-600 px-6 py-2.5 text-base font-medium text-white hover:bg-red-700 transition-colors"
+            (click)="removeFromCart(product)"
+          >
+            <i class="fa-solid fa-trash mr-2"></i>Remove
+          </button>
+
+          <ng-template #erpaddtocart>
+            <button
+              class="rounded-lg bg-gray-900 px-6 py-2.5 text-base font-medium text-white hover:bg-black transition-colors"
+              *ngIf="product.stock == 'In stock'"
+              (click)="addToCart(product)"
+            >
+              <i class="fa-solid fa-bag-shopping mr-2"></i>Add to Cart
+            </button>
+            <button
+              class="rounded-lg bg-gray-300 px-6 py-2.5 text-base font-medium text-gray-600 cursor-not-allowed"
+              disabled
+              *ngIf="product.stock != 'In stock'"
+            >
+              Not Available
+            </button>
+          </ng-template>
+
+          <button class="rounded-lg bg-gray-100 px-5 py-2.5 text-base font-medium text-gray-700 hover:bg-gray-200 transition-colors">Contact Us</button>
+        </div>
+
+        <p class="text-gray-700 text-base leading-7 break-words">
+          {{erpLongDescription || product.description}}
+        </p>
+      </div>
+    </div>
+  </article>
+
+  <article class="grid grid-cols-1 md:grid-cols-2" *ngIf="!isErpDetail">
+    <div class="flex flex-col md:flex-row col-span-2 md:col-span-1 mx-auto md:mx-0">
+        <div class="flex flex-wrap flex-row md:flex-col gap-2 order-2 md:order-1">
+            <div 
+            [ngClass]="selectedImage==i?'w-28 cursor-pointer border border-gray-400':'w-28 cursor-pointer'" 
+            *ngFor="let image of images; index as i">
+                <img class="object-center" [src]="image" [alt]="title" (click)="onImage(image,i)">
+            </div>
+        </div>
+
+        <div class="mx-auto order-1 md:order-2">
+            <img class="w-full object-cover object-center" [src]="imageSrc" [alt]="title">
+        </div>
+    </div>
+    <div class="col-span-1 md:col-span-1 md:px-6 lg:px-10 py-4">
+        <h4 class="text-sm text-gray-500 uppercase tracking-wide mb-2">{{ isErpDetail ? 'ERPNext Item' : 'Brand Name' }}</h4>
+        <h1 class="font-bold text-3xl mb-2">{{title}}</h1>
+        
+        <!-- Category and Code Info -->
+        <p class="text-gray-600 text-sm mb-4">
+          <span class="font-medium">{{product.category}}</span>
+          <span class="text-gray-400"> | </span>
+          <span>Item Code : <span class="font-medium">{{product.type}}</span></span>
+        </p>
+
+        <!-- Divider -->
+        <div class="border-b border-gray-200 pb-4 mb-4"></div>
+
+        <!-- Rating Section -->
+        <div class="flex items-center gap-3 mb-4" *ngIf="!isErpDetail">
+          <span class="text-2xl font-bold text-orange-500">{{product.rating.rate}}</span>
+          <div class="flex gap-1">
+            <span *ngFor="let ratestar of ratingList">
+              <i class="fa-solid fa-star text-orange-400" *ngIf="ratestar"></i>
+            </span>
+            <span *ngFor="let ratestar of ratingList">
+              <i class="fa-regular fa-star text-orange-400" *ngIf="!ratestar"></i>
+            </span>
+          </div>
+          <span class="text-sm text-gray-600">({{product.rating.count}} Reviews)</span>
+        </div>
+
+        <!-- Description -->
+        <div class="mb-6">
+          <p class="text-gray-700 leading-relaxed line-clamp-3">
+            {{product.description}}
+          </p>
+        </div>
+
+        <!-- Price Section -->
+        <div class="flex items-center gap-3 mb-6" *ngIf="!isErpDetail">
+          <p class="text-3xl font-bold text-gray-900">&#8377;{{product.price}}</p>
+          <p class="text-lg text-gray-400 line-through" *ngIf="product.prevprice!==0">&#8377;{{product.prevprice}}</p>
+          <span class="text-lg font-bold text-red-600" *ngIf="product.prevprice!==0">-{{discount}}%</span>
+        </div>
+
+        <!-- Stock Status -->
+        <div class="mb-6" *ngIf="!isErpDetail">
+          <span *ngIf="product.stock=='In stock'; else outofstock" class="inline-block bg-green-100 text-green-800 text-sm font-semibold px-4 py-2 rounded">
+            <i class="fa-solid fa-check mr-2"></i>{{product.stock}}
+          </span>
+          <ng-template #outofstock>
+            <span class="inline-block bg-yellow-100 text-yellow-800 text-sm font-semibold px-4 py-2 rounded">
+              <i class="fa-solid fa-exclamation-triangle mr-2"></i>{{product.stock}}
+            </span>
+          </ng-template>
+        </div>
+
+        <!-- Divider -->
+        <div class="border-b border-gray-200 pb-4 mb-4"></div>
+
+        <!-- Size Selection -->
+        <div class="mb-6" *ngIf="!isErpDetail && product.sizes && product.sizes.length > 0">
+          <h5 class="font-semibold mb-3">Select Size</h5>
+          <div class="flex flex-wrap gap-2">
+            <button 
+              *ngFor="let size of product.sizes; let i = index"
+              [ngClass]="selectedSize === (i + '') ? 'px-4 py-2 border-2 border-gray-800 bg-gray-800 text-white' : 'px-4 py-2 border-2 border-gray-300 bg-white text-gray-800 hover:border-gray-800'"
+              (click)="addSize(size, i + '')"
+              class="transition-all duration-200"
+            >
+              {{size}}
+            </button>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex flex-col sm:flex-row gap-3" *ngIf="!isErpDetail">
+          <button 
+            *ngIf="product.stock=='Out of stock'"
+            disabled
+            class="flex-1 py-3 px-6 bg-gray-300 text-gray-600 font-semibold rounded cursor-not-allowed"
+          >
+            <i class="fa-solid fa-ban mr-2"></i>NOT AVAILABLE
+          </button>
+          
+          <ng-template #addtocart>
+            <button 
+              *ngIf="product.stock=='In stock'"
+              class="flex-1 py-3 px-6 bg-gray-800 text-white font-semibold rounded hover:bg-gray-900 transition-colors"
+              (click)="addToCart(product)"
+            >
+              <i class="fa-solid fa-bag-shopping mr-2"></i>ADD TO CART
+            </button>
+          </ng-template>
+          
+          <button 
+            *ngIf="isProductInCart(product); else addtocart"
+            class="flex-1 py-3 px-6 bg-red-600 text-white font-semibold rounded hover:bg-red-700 transition-colors"
+            (click)="removeFromCart(product)"
+          >
+            <i class="fa-solid fa-trash mr-2"></i>REMOVE
+          </button>
+
+          <button 
+            class="py-3 px-6 border-2 border-gray-300 text-gray-800 font-semibold rounded hover:border-gray-800 transition-colors"
+            title="Add to Wishlist"
+          >
+            <i class="fa-regular fa-heart mr-2"></i>WISHLIST
+          </button>
+        </div>
+
+        <!-- Product Details Section -->
+        <div class="mt-10 pt-6 border-t border-gray-200">
+          <h3 class="text-xl font-bold mb-4">Product Details</h3>
+          <div class="bg-gray-50 p-4 rounded">
+            <h5 class="font-semibold text-gray-900 mb-2">GENERAL INFORMATION</h5>
+            <p class="text-gray-700 text-sm leading-relaxed">
+              {{product.description}}
+            </p>
+            <div class="mt-4 grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p class="text-gray-600 font-medium">Category</p>
+                <p class="text-gray-900">{{product.category}}</p>
+              </div>
+              <div>
+                <p class="text-gray-600 font-medium">Type</p>
+                <p class="text-gray-900">{{product.type}}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+    </div>
+    
+  </article>
+
+  <article class="mt-4 rounded-2xl border border-gray-200 bg-white p-5 md:p-6 lg:p-7 shadow-sm" *ngIf="isErpDetail">
+    <h3 class="text-3xl md:text-4xl font-semibold text-gray-800 mb-6">Product Details</h3>
+    <div class="rounded-xl border border-gray-100 bg-gray-50/60 p-4 md:p-5">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-4 text-base md:text-lg text-gray-700">
+      <ng-container *ngFor="let row of detailRows">
+        <p class="text-gray-500 capitalize">{{ row.label }}</p>
+        <p class="text-gray-900 font-medium break-words">{{ row.value }}</p>
+      </ng-container>
+      </div>
+    </div>
+
+    <div class="my-8 border-b border-gray-200"></div>
+
+    <div class="flex items-center justify-between gap-3 mb-6 flex-wrap">
+      <h3 class="text-3xl md:text-4xl font-semibold text-gray-800">Customer Reviews</h3>
+      <button class="rounded-xl bg-gray-100 px-4 py-2 text-base font-medium text-gray-700 hover:bg-gray-200 transition-colors">Write a Review</button>
+    </div>
+
+    <div class="rounded-xl border border-gray-100 bg-gray-50/60 p-4 md:p-5">
+      <div class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-7 mb-6">
+      <div class="flex flex-col items-center justify-center lg:border-r border-gray-200 lg:pr-6">
+        <p class="text-6xl font-semibold text-gray-900">{{erpAverageRating | number:'1.1-1'}}</p>
+        <p class="text-2xl text-gray-600 mt-2">{{getErpRatedCount()}} ratings</p>
+        <div class="mt-3 rounded-full bg-gray-100 px-4 py-2 flex items-center gap-2">
+          <i class="fa-solid fa-star" *ngFor="let star of erpStars" [ngClass]="isAverageStarFilled(star) ? 'text-amber-300' : 'text-gray-300'"></i>
+        </div>
+        <p class="text-2xl text-gray-600 mt-2">{{erpAverageRating | number:'1.1-1'}} out of 5</p>
+      </div>
+
+      <div class="space-y-3">
+        <div class="flex items-center gap-3" *ngFor="let star of erpStars">
+          <span class="w-16 md:w-20 text-base md:text-lg text-gray-700">{{ star }} star</span>
+          <div class="h-2.5 flex-1 rounded-full bg-gray-200 overflow-hidden">
+            <div class="h-full bg-gray-500" [style.width.%]="getErpStarPercentage(star)"></div>
+          </div>
+          <span class="w-16 text-base md:text-lg text-gray-500 text-right">{{getErpStarPercentage(star) | number:'1.0-1'}}%</span>
+        </div>
+      </div>
+    </div>
+
+    <div *ngIf="erpReviews.length > 0; else noErpReviews" class="space-y-6">
+      <div class="border-t border-gray-200 pt-6" *ngFor="let review of erpReviews">
+        <div class="flex items-center gap-2 mb-2" *ngIf="review.title || review.rating > 0">
+          <p class="text-2xl font-semibold text-gray-800" *ngIf="review.title">{{review.title}}</p>
+          <div class="flex items-center gap-1" *ngIf="review.rating > 0">
+            <i class="fa-solid fa-star" *ngFor="let star of erpStars" [ngClass]="star <= review.rating ? 'text-amber-300' : 'text-gray-300'"></i>
+          </div>
+        </div>
+
+        <p class="text-gray-700 text-xl" *ngIf="review.comment">{{review.comment}}</p>
+        <p class="text-gray-500 text-xl mt-3">{{review.reviewer}}<span *ngIf="review.date"> • {{review.date}}</span></p>
+      </div>
+    </div>
+
+    <ng-template #noErpReviews>
+      <p class="text-2xl text-gray-600">No Reviews</p>
+    </ng-template>
+    </div>
+  </article>
+
+
+<article class="mt-25 mb-10 bg-white pt-5" *ngIf="!isErpDetail && relatedProductList.length!==0">
+  <h3 class="text-2xl font-semibold mb-5">RELATED PRODUCTS</h3>
+  <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 bg-white">
+    <app-productcard
+    *ngFor="let relatedProduct of relatedProductList"
+    [product]="relatedProduct"
+    ></app-productcard>
+  </div>
+</article>
+
+<article class="text-gray-500 flex flex-col py-50 h-[300px] justify-center items-center" *ngIf="!isErpDetail && !isLoading && relatedProductList.length==0">
+  <span class="">
+      <svg class="svg-icon" 
+      style="height:4rem;width:4rem;vertical-align: middle;fill: currentColor;overflow: hidden;" 
+      viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+      <path d="M504.1 452.5c-18.3 0-36.5-4.1-50.7-10.1l-280.1-138c-18.3-10.1-30.4-24.4-30.4-40.6 0-16.2 10.2-32.5 30.4-42.6L455.4 77.1c16.2-8.1 34.5-12.2 54.8-12.2 18.3 0 36.5 4.1 50.7 10.1L841 213c18.3 10.1 30.4 24.4 30.4 40.6 0 16.2-10.1 32.5-30.4 42.6L558.9 440.3c-16.3 8.1-34.5 12.2-54.8 12.2zM193.6 261.7l280.1 138c8.1 4.1 18.3 6.1 30.4 6.1 12.2 0 24.4-2 32.5-6.1l284.1-144.1-280.1-138c-8.1-4.1-18.3-6.1-30.4-6.1-12.2 0-24.4 2-32.5 6.1L193.6 261.7z m253.6 696.1c-10.1 0-20.3-2-30.4-8.1L165.1 817.8c-30.4-14.2-52.8-46.7-52.8-73.1V391.6c0-24.4 18.3-42.6 44.6-42.6 10.1 0 20.3 2 30.4 8.1L437.1 489c30.4 14.2 52.8 46.7 52.8 73.1v353.1c0 24.4-18.3 42.6-42.7 42.6z m-10.1-48.7c2 2 4.1 2 6.1 2v-349c0-8.1-10.1-24.4-26.4-32.5L165.1 397.7c-2-2-4.1-2-6.1-2v349.1c0 8.1 10.2 24.4 26.4 32.5l251.7 131.8z m144.1 48.7c-24.4 0-42.6-18.3-42.6-42.6V562.1c0-26.4 22.3-58.9 52.8-73.1L841 357.1c10.1-4.1 20.3-8.1 30.4-8.1 24.4 0 42.6 18.3 42.6 42.6v353.1c0 26.4-22.3 58.9-52.8 73.1L611.6 949.7c-12.2 6.1-20.3 8.1-30.4 8.1z m280-560.1L611.6 529.6c-16.2 8.1-26.4 24.4-26.4 32.5v349.1c2 0 4.1-2 6.1-2l249.6-131.9c16.2-8.1 26.4-24.4 26.4-32.5V395.7c-2 0-4 2-6.1 2z m0 0"  />
+      </svg>
+  </span>
+  <h4 class="text-md px-4 py-2">NO RELATED PRODUCTS</h4>
+</article>
+
+</section>
+
+
+
+
+
+
