@@ -1,11 +1,22 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, HostListener } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { finalize } from 'rxjs/operators';
 import { SellerRegistrationService } from 'src/app/shared/services/seller-registration.service';
+import { FirebaseAuthService } from '../../services/firebase-auth.service';
+import { Router } from '@angular/router';
+import { ToastService } from '../../services/toast.service';
+
 
 interface CityOption {
   cityId: string;
   cityName: string;
+}
+
+export interface Category {
+  catID: string;
+  catName: string;
+  catImg?: string;
+  catType?: string;
 }
 
 @Component({
@@ -17,6 +28,8 @@ export class SellerRegistrationComponent implements OnInit {
   sellerForm!: FormGroup;
 
   loading = false;
+  successMessage = '';
+  errorMessage = '';
 
   cities: CityOption[] = [];
   termsAndConditions: string[] = [];
@@ -43,72 +56,205 @@ export class SellerRegistrationComponent implements OnInit {
   generatedOTP = '';
   generatedMailOTP = '';
 
-  paymentMethod: 'online' | 'cheque' = 'online';
+  paymentMethod: 'online' | 'cheque' = 'cheque';
   chequeImage: string | null = null;
 
   profilePhoto: string | null = null;
   panPhoto: string | null = null;
   aadharPhoto: string | null = null;
   bankChequePhoto: string | null = null;
+  companyLogo: string | null = null;
+
+  availableCategories: Category[] = [];
+  selectedCategories: Category[] = [];
+  isLoadingCategories = false;
+  isCategoryDropdownOpen = false;
+
+  citySearchText = '';
+  isCityDropdownOpen = false;
+  filteredCities: CityOption[] = [];
+
+  showPassword = false;
+  showConfirmPassword = false;
 
   constructor(
     private readonly fb: FormBuilder,
-    private readonly sellerService: SellerRegistrationService
+    private readonly sellerService: SellerRegistrationService,
+    private readonly authService: FirebaseAuthService,
+    private readonly router: Router,
+    private readonly toastService: ToastService
   ) {}
 
   ngOnInit(): void {
+    console.log('[SellerReg] Component initialized');
     this.sellerForm = this.fb.group({
+      // Personnel Details
       firstName: ['', Validators.required],
       lastName: ['', Validators.required],
-      fatherHusbandName: ['', Validators.required],
-      fatherHusbandRelation: ['F', Validators.required],
-      gender: ['', Validators.required],
-      mobile: ['', [Validators.required, Validators.pattern(/^[6-9]\d{9}$/)]],
-      otp: [''],
+      fatherHusbandName: [''],
+      fatherHusbandRelation: ['F'],
+      gender: [''],
+      mobile: ['', [Validators.pattern(/^[6-9]\d{9}$/)]],
       email: ['', [Validators.required, Validators.email]],
       mailOtp: [''],
-      panNo: ['', [Validators.required, Validators.pattern(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/)]],
-      aadharNo: ['', [Validators.required, Validators.pattern(/^[0-9]{12}$/)]],
-      aadharOtp: [''],
+      password: ['', [Validators.required, Validators.minLength(6)]],
+      confirmPassword: ['', Validators.required],
+
+      // Identity Verification
+      panNo: ['', [Validators.pattern(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/)]],
+      aadharNo: ['', [Validators.pattern(/^[0-9]{12}$/)]],
       isGstRegistered: [false],
       gstNo: ['', Validators.pattern(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/)],
-      bankAccountNo: ['', Validators.required],
-      bankIFSCCode: ['', Validators.required],
-      bankAccountName: ['', Validators.required],
-      bankName: ['', Validators.required],
-      bankBranch: ['', Validators.required],
-      addressLine1: ['', Validators.required],
-      pincode: ['', [Validators.required, Validators.pattern(/^[0-9]{6}$/)]],
-      cityId: ['', Validators.required],
+
+      // Business Details
+      businessName: [''],
+      companyType: [''],
+      companyPan: [''],
+      companyLogoData: [''],
+
+      // Bank Details
+      bankAccountNo: [''],
+      bankIFSCCode: [''],
+      bankAccountName: [''],
+      bankName: [''],
+      bankBranch: [''],
+      
+      // Category
+      categoryType: [''],
+
+      // Address
+      addressLine1: [''],
+      street: [''],
+      pincode: ['', [Validators.pattern(/^[0-9]{6}$/)]],
+      cityId: [''],
       cityName: [''],
-      tshirtSize: ['', Validators.required],
+      state: [''],
+
+      // Referral
       referralId: [''],
+
+      // Terms
       agreedToTerms: [false, Validators.requiredTrue],
-      profilePhotoData: ['', Validators.required],
-      panPhotoData: ['', Validators.required],
-      aadharPhotoData: ['', Validators.required],
-      bankCancelChqPhotoData: ['', Validators.required],
-      paymentMethod: ['online'],
+
+      // Documents
+      profilePhotoData: [''],
+      panPhotoData: [''],
+      aadharPhotoData: [''],
+
+      // Payment
+      paymentMethod: ['cheque'],
       chequeImage: [''],
       paymentStatus: ['0'],
       championTypeId: ['306eac7c4044d11cc8e58b014f7dfdc0']
-    });
+    }, { validators: this.passwordMatchValidator });
 
     this.fetchCities();
     this.fetchTermsAndConditions();
+    console.log('[SellerReg] Form group created with controls:', Object.keys(this.sellerForm.controls));
   }
 
   get cf() {
     return this.sellerForm.controls;
   }
 
+  passwordMatchValidator(g: FormGroup) {
+    const password = g.get('password')?.value;
+    const confirmPassword = g.get('confirmPassword')?.value;
+    return password === confirmPassword ? null : { mismatch: true };
+  }
+
+  togglePasswordVisibility(field: 'password' | 'confirmPassword'): void {
+    if (field === 'password') {
+      this.showPassword = !this.showPassword;
+    } else {
+      this.showConfirmPassword = !this.showConfirmPassword;
+    }
+  }
+
+  isCategorySelected(catID: string): boolean {
+    return this.selectedCategories.some(c => c.catID === catID);
+  }
+
+  toggleCategory(cat: Category): void {
+    const index = this.selectedCategories.findIndex(c => c.catID === cat.catID);
+    if (index > -1) {
+      this.selectedCategories.splice(index, 1);
+    } else {
+      this.selectedCategories.push(cat);
+    }
+  }
+
+  onCategoryTypeChange(type: string): void {
+    this.selectedCategories = [];
+    this.availableCategories = [];
+    
+    if (!type) {
+      return;
+    }
+
+    this.isLoadingCategories = true;
+    this.authService.getCandidCategories(type).subscribe({
+      next: (res) => {
+        this.availableCategories = res.map(cat => ({
+          catID: cat.catId || cat.catID,
+          catName: cat.catName,
+          catType: cat.catType,
+          catImg: cat.catImg
+        }));
+        console.log(`[SellerReg] Fetched ${this.availableCategories.length} categories from Firebase for type ${type}`);
+        this.isLoadingCategories = false;
+      },
+      error: (err) => {
+        console.error('[SellerReg] Error fetching categories from Firebase:', err);
+        this.isLoadingCategories = false;
+      }
+    });
+  }
+
   onCityChange(cityId: string): void {
     const city = this.cities.find((c) => c.cityId === cityId);
-    this.sellerForm.patchValue({ cityName: city?.cityName || '' });
+    this.sellerForm.patchValue({ 
+      cityId: city?.cityId || '',
+      cityName: city?.cityName || '' 
+    });
+  }
+
+  filterCities(event: any): void {
+    const text = event.target.value.toLowerCase();
+    this.citySearchText = text;
+    this.isCityDropdownOpen = true;
+    this.filteredCities = this.cities.filter(c => 
+      c.cityName.toLowerCase().includes(text)
+    );
+  }
+
+  selectCity(city: CityOption): void {
+    this.sellerForm.patchValue({ 
+      cityId: city.cityId,
+      cityName: city.cityName 
+    });
+    this.citySearchText = city.cityName;
+    this.isCityDropdownOpen = false;
+  }
+
+  toggleCityDropdown(): void {
+    this.isCityDropdownOpen = !this.isCityDropdownOpen;
+    if (this.isCityDropdownOpen) {
+      this.filteredCities = this.cities;
+    }
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement;
+    if (!target.closest('.searchable-dropdown')) {
+      this.isCityDropdownOpen = false;
+    }
   }
 
   verifyPAN(): void {
     const panNo = this.cf['panNo'].value;
+    console.log('[SellerReg] verifyPAN called, panNo:', panNo);
     if (!panNo) {
       window.alert('Please enter PAN number');
       return;
@@ -120,6 +266,7 @@ export class SellerRegistrationComponent implements OnInit {
       .pipe(finalize(() => (this.loading = false)))
       .subscribe({
         next: (response) => {
+          console.log('[SellerReg] PAN verify response:', response);
           const success = response?.status === 'SUCCESS';
           this.isPanVerified = success;
           this.panVerMsg = success ? 'PAN verified successfully' : 'PAN verification failed';
@@ -127,7 +274,8 @@ export class SellerRegistrationComponent implements OnInit {
             this.cf['panNo'].disable();
           }
         },
-        error: () => {
+        error: (err) => {
+          console.error('[SellerReg] PAN verify error:', err);
           this.isPanVerified = false;
           this.panVerMsg = 'PAN verification failed';
         }
@@ -137,6 +285,7 @@ export class SellerRegistrationComponent implements OnInit {
   verifyBank(): void {
     const accountNo = this.cf['bankAccountNo'].value;
     const ifscCode = this.cf['bankIFSCCode'].value;
+    console.log('[SellerReg] verifyBank called, accountNo:', accountNo, 'ifsc:', ifscCode);
 
     if (!accountNo || !ifscCode) {
       window.alert('Please enter account number and IFSC code');
@@ -152,6 +301,7 @@ export class SellerRegistrationComponent implements OnInit {
       .pipe(finalize(() => (this.loading = false)))
       .subscribe({
         next: (response) => {
+          console.log('[SellerReg] Bank verify response:', response);
           const accountName = response?.data?.result?.accountName;
           this.isBankVerified = !!accountName;
           this.bankVerMsg = this.isBankVerified
@@ -167,7 +317,8 @@ export class SellerRegistrationComponent implements OnInit {
             this.cf['bankIFSCCode'].disable();
           }
         },
-        error: () => {
+        error: (err) => {
+          console.error('[SellerReg] Bank verify error:', err);
           this.isBankVerified = false;
           this.bankVerMsg = 'Bank verification failed';
         }
@@ -176,6 +327,7 @@ export class SellerRegistrationComponent implements OnInit {
 
   verifyGST(): void {
     const gstNo = this.cf['gstNo'].value;
+    console.log('[SellerReg] verifyGST called, gstNo:', gstNo);
     if (!gstNo) {
       window.alert('Please enter GST number');
       return;
@@ -187,10 +339,12 @@ export class SellerRegistrationComponent implements OnInit {
       .pipe(finalize(() => (this.loading = false)))
       .subscribe({
         next: (response) => {
+          console.log('[SellerReg] GST verify response:', response);
           this.isGstVerified = response?.status === 'SUCCESS';
           this.gstVerMsg = this.isGstVerified ? 'GST verified successfully' : 'GST verification failed';
         },
-        error: () => {
+        error: (err) => {
+          console.error('[SellerReg] GST verify error:', err);
           this.isGstVerified = false;
           this.gstVerMsg = 'GST verification failed';
         }
@@ -199,6 +353,7 @@ export class SellerRegistrationComponent implements OnInit {
 
   sendAadharOTP(): void {
     const aadharNo = this.cf['aadharNo'].value;
+    console.log('[SellerReg] sendAadharOTP called, aadharNo:', aadharNo);
     if (!aadharNo) {
       window.alert('Please enter Aadhaar number');
       return;
@@ -209,11 +364,13 @@ export class SellerRegistrationComponent implements OnInit {
       .verifyDocument('aadhaar-otp', { aadhaar: aadharNo })
       .pipe(finalize(() => (this.loading = false)))
       .subscribe({
-        next: () => {
+        next: (res) => {
+          console.log('[SellerReg] Aadhaar OTP sent response:', res);
           this.mobileOtpSent = true;
           this.aadharVerMsg = 'Aadhaar OTP sent successfully';
         },
-        error: () => {
+        error: (err) => {
+          console.error('[SellerReg] Aadhaar OTP send error:', err);
           this.aadharVerMsg = 'Unable to send Aadhaar OTP. Please upload Aadhaar card image for manual verification.';
         }
       });
@@ -251,6 +408,7 @@ export class SellerRegistrationComponent implements OnInit {
   sendOTP(): void {
     const mobile = this.cf['mobile'].value;
     const name = this.cf['firstName'].value || 'User';
+    console.log('[SellerReg] sendOTP called, mobile:', mobile, 'name:', name);
 
     if (!/^[6-9]\d{9}$/.test(mobile || '')) {
       window.alert('Please enter a valid 10-digit mobile number');
@@ -263,11 +421,13 @@ export class SellerRegistrationComponent implements OnInit {
       .pipe(finalize(() => (this.loading = false)))
       .subscribe({
         next: (response) => {
+          console.log('[SellerReg] Mobile OTP sent response:', response);
           this.generatedOTP = response?.otp?.toString() || '';
           this.mobileOtpSent = true;
           this.mobileVerMsg = 'OTP sent successfully';
         },
-        error: () => {
+        error: (err) => {
+          console.error('[SellerReg] Mobile OTP send error:', err);
           this.mobileVerMsg = 'Unable to send OTP';
         }
       });
@@ -385,7 +545,7 @@ export class SellerRegistrationComponent implements OnInit {
     reader.readAsDataURL(file);
   }
 
-  selectPhoto(event: Event, formControlName: string, target: 'profilePhoto' | 'panPhoto' | 'aadharPhoto' | 'bankChequePhoto'): void {
+  selectPhoto(event: Event, formControlName: string, target: 'profilePhoto' | 'panPhoto' | 'aadharPhoto' | 'bankChequePhoto' | 'companyLogo'): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) {
@@ -394,69 +554,205 @@ export class SellerRegistrationComponent implements OnInit {
 
     const allowed = ['image/jpeg', 'image/png', 'application/pdf'];
     if (!allowed.includes(file.type)) {
+      console.warn('[SellerReg] Invalid file type:', file.type, 'for', target);
       window.alert('Please select JPG/PNG/PDF file only');
       input.value = '';
       return;
     }
 
+    console.log('[SellerReg] File selected for', target, '- name:', file.name, 'size:', file.size, 'type:', file.type);
     const reader = new FileReader();
     reader.onload = () => {
       const result = reader.result?.toString() || '';
+      console.log('[SellerReg] File read complete for', target, '- base64 length:', result.length);
       this.sellerForm.patchValue({ [formControlName]: result });
       (this as any)[target] = result;
     };
     reader.readAsDataURL(file);
   }
 
-  onSubmit(): void {
+  async onSubmit(): Promise<void> {
+    console.log('[SellerReg] ========== SUBMIT STARTED ==========');
+    this.successMessage = '';
+    this.errorMessage = '';
+
+    // Log form validity state
+    console.log('[SellerReg] Form valid:', this.sellerForm.valid);
+    console.log('[SellerReg] Form errors:', this.sellerForm.errors);
+
+    // Log each control's validity
+    const invalidControls: string[] = [];
+    Object.keys(this.sellerForm.controls).forEach(key => {
+      const control = this.sellerForm.get(key);
+      if (control?.invalid) {
+        invalidControls.push(`${key} (errors: ${JSON.stringify(control.errors)})`);
+      }
+    });
+    if (invalidControls.length > 0) {
+      console.log('🛑 [SellerReg] INVALID CONTROLS FOUND:', invalidControls);
+    }
+
     if (this.sellerForm.invalid) {
       this.sellerForm.markAllAsTouched();
-      window.alert('Please fill all required seller details correctly');
+
+      // Check for password mismatch specifically
+      if (this.sellerForm.hasError('mismatch')) {
+        console.log('🛑 [SellerReg] Password mismatch detected');
+        this.errorMessage = 'Passwords do not match.';
+        return;
+      }
+
+      // Provide user-friendly field names for the UI error message
+      const fieldNames: Record<string, string> = {
+        firstName: 'First Name',
+        lastName: 'Last Name',
+        businessName: 'Business Name',
+        companyType: 'Type of Company',
+        mobile: 'Mobile Number',
+        email: 'Email',
+        companyPan: 'Company PAN',
+        panNo: 'PAN No',
+        aadharNo: 'Aadhaar Number',
+        bankAccountNo: 'Bank Account No',
+        bankIFSCCode: 'IFSC Code',
+        bankAccountName: 'Bank Account Name',
+        bankName: 'Bank Name',
+        bankBranch: 'Branch Name',
+        categoryType: 'Category Type',
+        addressLine1: 'Flat / House No',
+        street: 'Street',
+        pincode: 'Pincode',
+        stateName: 'State',
+        cityName: 'City',
+        password: 'Password',
+        confirmPassword: 'Confirm Password',
+        terms: 'Terms & Conditions'
+      };
+
+      const missingFieldsText = invalidControls.map(c => {
+        const key = c.split(' ')[0];
+        return fieldNames[key] || key;
+      }).join(', ');
+
+      console.log('🛑 [SellerReg] Form is invalid, aborting submit. See invalid fields above.');
+      this.errorMessage = `Please fix the following fields: ${missingFieldsText}`;
+      this.toastService.showError(this.errorMessage);
       return;
     }
 
-    if (this.paymentMethod === 'cheque' && !this.chequeImage) {
-      window.alert('Please upload cheque image before submission');
-      return;
-    }
 
-    const payload = {
-      ...this.sellerForm.getRawValue(),
+
+    const raw = this.sellerForm.getRawValue();
+    console.log('[SellerReg] Raw form values:', { ...raw, password: '***', confirmPassword: '***', profilePhotoData: raw.profilePhotoData ? `[base64 ${raw.profilePhotoData.length} chars]` : '', panPhotoData: raw.panPhotoData ? `[base64 ${raw.panPhotoData.length} chars]` : '', aadharPhotoData: raw.aadharPhotoData ? `[base64 ${raw.aadharPhotoData.length} chars]` : '', bankCancelChqPhotoData: raw.bankCancelChqPhotoData ? `[base64 ${raw.bankCancelChqPhotoData.length} chars]` : '', companyLogoData: raw.companyLogoData ? `[base64 ${raw.companyLogoData.length} chars]` : '' });
+
+    // Map gender codes to full names
+    const genderMap: Record<string, string> = { M: 'Male', F: 'Female', O: 'Other' };
+
+    // Build the seller data payload for the service
+    const sellerPayload = {
+      email: raw.email,
+      password: raw.password,
+      userFullName: `${raw.firstName} ${raw.lastName}`.trim(),
+      userMobile1: `+91 ${raw.mobile}`,
+      userGender: genderMap[raw.gender] || raw.gender || '',
+      userBusinessName: raw.businessName || '',
+      userSelectedTypeOfCompany: raw.companyType || '',
+      CompanyPan: raw.companyPan || '',
+      userPanNo: raw.panNo || '',
+      aadhaarNo: raw.aadharNo || '',
+      userGstNo: raw.gstNo || '',
+      userAddress: `${raw.addressLine1}, ${raw.cityName || ''}, ${raw.pincode || ''}`.trim(),
+      userAddressLine1: raw.addressLine1 || '',
+      userAddressLine2: raw.street || '',
+      userAddressStreet: raw.street || '',
+      userAddressCity: raw.cityName || '',
+      userAddressPinCode: raw.pincode || '',
+      userAddressState: raw.state || '',
+      bankAccountHolderName: raw.bankAccountName || '',
+      bankAccountHolderAcNumber: raw.bankAccountNo || '',
+      bankAccountHolderIFSC: raw.bankIFSCCode || '',
+      bankAccountHolderBankName: raw.bankName || '',
+      bankAccountHolderBankBranch: raw.bankBranch || '',
+      userProfilePic: raw.profilePhotoData || '',
+      panCardImage: raw.panPhotoData || '',
+      aadhaarCardImage: raw.aadharPhotoData || '',
+      userCompanyLogo: raw.companyLogoData || '',
       paymentMethod: this.paymentMethod,
-      paymentStatus: this.paymentMethod === 'online' ? '2' : '1',
+      paymentStatus: 'pending',
+      chequeImage: this.chequeImage || '',
+      referredBy: raw.referralId || '',
+      championName: '',
+      championMobile: '',
+      categoryType: raw.categoryType || '',
+      selectedCatsList: this.selectedCategories,
+      fatherHusbandName: raw.fatherHusbandName || '',
+      fatherHusbandRelation: raw.fatherHusbandRelation || '',
       panVerified: this.isPanVerified,
       bankVerified: this.isBankVerified,
       aadharVerified: this.isAadharVerified,
       gstVerified: this.isGstVerified,
-      referralVerified: this.isReferralVerified
     };
 
+    console.log('[SellerReg] Seller payload built (password hidden):', { ...sellerPayload, password: '***', userProfilePic: sellerPayload.userProfilePic ? '[has data]' : '[empty]', panCardImage: sellerPayload.panCardImage ? '[has data]' : '[empty]', aadhaarCardImage: sellerPayload.aadhaarCardImage ? '[has data]' : '[empty]', userCompanyLogo: sellerPayload.userCompanyLogo ? '[has data]' : '[empty]', chequeImage: sellerPayload.chequeImage ? '[has data]' : '[empty]' });
+    console.log('[SellerReg] Verification status — PAN:', this.isPanVerified, '| Bank:', this.isBankVerified, '| Aadhaar:', this.isAadharVerified, '| GST:', this.isGstVerified);
+    console.log('[SellerReg] Payment method:', this.paymentMethod, '| Cheque uploaded:', !!this.chequeImage);
+
     this.loading = true;
-    this.sellerService
-      .addSellerRegistration(payload)
-      .pipe(finalize(() => (this.loading = false)))
-      .subscribe({
-        next: (result) => {
-          if (result?.responseStatus === 'Ok' || result?.responseStatus === 'OK') {
-            window.alert('Seller registration request sent successfully');
-            this.sellerForm.reset();
-            this.paymentMethod = 'online';
-          } else {
-            window.alert(result?.message || 'Seller registration failed');
-          }
-        },
-        error: (err) => {
-          window.alert(err?.error?.message || 'Seller registration failed');
-        }
-      });
+
+    try {
+      console.log('[SellerReg] Calling authService.registerSeller()...');
+      const result = await this.authService.registerSeller(sellerPayload);
+      console.log('[SellerReg] ✅ Registration SUCCESS! Result:', result);
+      this.toastService.showSuccess('Seller registered successfully!');
+      this.successMessage = 'Seller registration successful! Your profile is under review. You can now login with your email and password.';
+      this.sellerForm.reset();
+      this.paymentMethod = 'cheque';
+      this.chequeImage = null;
+      this.profilePhoto = null;
+      this.panPhoto = null;
+      this.aadharPhoto = null;
+      this.bankChequePhoto = null;
+      this.companyLogo = null;
+      this.availableCategories = [];
+      this.selectedCategories = [];
+
+      // Redirect to login after 3 seconds
+      console.log('[SellerReg] Redirecting to /login in 3 seconds...');
+      setTimeout(() => {
+        this.router.navigate(['/login']);
+      }, 3000);
+    } catch (error: any) {
+      console.error('[SellerReg] ❌ Registration FAILED!');
+      console.error('[SellerReg] Error code:', error?.code);
+      console.error('[SellerReg] Error message:', error?.message);
+      console.error('[SellerReg] Full error object:', error);
+      if (error?.code === 'auth/email-already-in-use') {
+        this.errorMessage = 'This email is already registered. Please use a different email or login.';
+      } else if (error?.code === 'auth/weak-password') {
+        this.errorMessage = 'Password is too weak. Please use at least 6 characters.';
+      } else if (error?.code === 'auth/invalid-email') {
+        this.errorMessage = 'Invalid email address format.';
+      } else {
+        this.errorMessage = error?.message || 'Seller registration failed. Please try again.';
+      }
+      this.toastService.showError(this.errorMessage);
+      console.error('[SellerReg] User-facing error message:', this.errorMessage);
+    } finally {
+      this.loading = false;
+      console.log('[SellerReg] ========== SUBMIT ENDED ==========');
+    }
   }
 
   private fetchCities(): void {
+    console.log('[SellerReg] Fetching cities...');
     this.sellerService.getCities().subscribe({
       next: (response) => {
         this.cities = response?.cities || [];
+        this.filteredCities = this.cities;
+        console.log('[SellerReg] Cities loaded:', this.cities.length, 'cities');
       },
-      error: () => {
+      error: (err) => {
+        console.error('[SellerReg] Failed to fetch cities:', err);
         this.cities = [];
       }
     });

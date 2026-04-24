@@ -1,0 +1,60 @@
+================================================================
+CANDID SELLER APP - REGISTRATION API DOCUMENTATION
+================================================================
+
+1. API OVERVIEW
+----------------------------------------------------------------
+This API is used to register new Sellers (Vendors) in the Candid system.
+It performs three main actions:
+   a. Creates a user in Firebase Authentication.
+   b. Sets Custom User Claims (isVendor: true).
+   c. Saves user details to the 'candidVendors' Firestore collection.
+
+2. ENDPOINT DETAILS
+----------------------------------------------------------------
+Base URL: https://us-central1-candid-cf9fc.cloudfunctions.net/app
+Endpoint: /login-register
+Method: POST
+
+3. REQUEST HEADERS
+----------------------------------------------------------------
+Content-Type: application/json
+
+4. REQUEST BODY (JSON)
+----------------------------------------------------------------
+{
+  "userPhone": "+91XXXXXXXXXX",      // Required (with country code)
+  "isVendor": true,                  // Mandatory for Seller Registration
+  "userData": {                      // Object containing profile details
+    "userFullName": "Your Name",     // Mandatory
+    "userEmail": "email@example.com",// Mandatory
+    "userAddress": "Full Address",   // Recommended
+    "isActive": false,               // Set to false by default (admin approves)
+    "createdAt": "ISO TIMESTAMP"     // Current date/time
+  }
+}
+
+5. RESPONSE EXAMPLES
+----------------------------------------------------------------
+SUCCESS (200 OK):
+{
+    "message": "Sign up is done!",
+    "userData": { ... }
+}
+
+ERROR (400 Bad Request):
+{
+    "message": "The provided phone number already exists."
+}
+
+6. INTEGRATION STEPS FOR WEB
+----------------------------------------------------------------
+1. Capture user inputs from a form.
+2. Validate that the phone number starts with + and has 10+ digits.
+3. Call the API using fetch() or axios().
+4. If success, show a confirmation message to the user.
+5. If the user already exists, you may need to handle the 'Login' flow instead.
+
+================================================================
+END OF DOCUMENTATION
+================================================================

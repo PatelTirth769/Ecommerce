@@ -23,11 +23,11 @@ export class RegisterComponent implements OnInit {
       lastname: ['', Validators.required],
       email: ['', [Validators.required, Validators.email]],
       mobile: ['', Validators.required],
-      pan: ['', Validators.required],
-      aadhar: ['', Validators.required],
-      address: ['', Validators.required],
+      pan: [''],
+      aadhar: [''],
+      address: [''],
       city: ['', Validators.required],
-      pincode: ['', Validators.required],
+      pincode: [''],
       password: ['', [Validators.required, Validators.minLength(6)]],
       confirmPassword: ['', Validators.required],
       terms: [false, Validators.requiredTrue]
@@ -40,8 +40,39 @@ export class RegisterComponent implements OnInit {
   }
 
   async onSubmit() {
+    this.errorMessage = '';
+    
     if (this.registerForm.invalid) {
       this.registerForm.markAllAsTouched();
+      
+      const invalidControls: string[] = [];
+      const controls = this.registerForm.controls;
+      for (const name in controls) {
+        if (controls[name].invalid) {
+          invalidControls.push(name);
+        }
+      }
+
+      const fieldNames: Record<string, string> = {
+        firstname: 'First Name',
+        lastname: 'Last Name',
+        email: 'Email',
+        mobile: 'Mobile Number',
+        pan: 'PAN Number',
+        aadhar: 'Aadhaar Number',
+        address: 'Address',
+        city: 'City',
+        pincode: 'Pincode',
+        password: 'Password',
+        confirmPassword: 'Confirm Password',
+        terms: 'Terms and Conditions'
+      };
+
+      const missingFields = invalidControls
+        .map(key => fieldNames[key] || key)
+        .join(', ');
+
+      this.errorMessage = `Please fix the following fields: ${missingFields}`;
       return;
     }
 

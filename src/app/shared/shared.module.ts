@@ -3,12 +3,14 @@ import { SkeletonComponent } from "./widgets/skeleton/product/skeleton.component
 import { CardskeletonComponent } from "./widgets/skeleton/cardskeleton/cardskeleton.component";
 import { AsideskeletonComponent } from "./widgets/skeleton/asideskeleton/asideskeleton.component";
 import { CommonModule } from "@angular/common";
+import { ToastComponent } from "./widgets/toast/toast.component";
 
 @NgModule({
     declarations:[
         CardskeletonComponent,
         AsideskeletonComponent,
-        SkeletonComponent
+        SkeletonComponent,
+        ToastComponent
     ],
     imports:[
         CommonModule
@@ -17,7 +19,8 @@ import { CommonModule } from "@angular/common";
     exports:[
         CardskeletonComponent,
         AsideskeletonComponent,
-        SkeletonComponent
+        SkeletonComponent,
+        ToastComponent
     ]
 })
 

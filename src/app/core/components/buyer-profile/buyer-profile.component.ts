@@ -1,7 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { FirebaseAuthService } from '../../services/firebase-auth.service';
 import { AngularFirestore } from '@angular/fire/compat/firestore';
-import { Observable } from 'rxjs';
+import { Observable, of } from 'rxjs';
+import { switchMap, map } from 'rxjs/operators';
 
 @Component({
   selector: 'app-buyer-profile',
@@ -17,16 +18,31 @@ export class BuyerProfileComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.authService.user$.subscribe(user => {
-      if (user?.uid) {
-        // Fetch profile data from Firestore
-        this.profileData$ = this.firestore
+    this.profileData$ = this.authService.user$.pipe(
+      switchMap(user => {
+        if (!user?.uid) return of(null);
+        
+        // Try fetching from buyers first
+        return this.firestore
           .collection('ecommerce_system')
           .doc('metadata')
           .collection('buyers')
           .doc(user.uid)
-          .valueChanges();
-      }
-    });
+          .valueChanges()
+          .pipe(
+            switchMap(buyerData => {
+              if (buyerData) return of(buyerData);
+              
+              // If not found in buyers, try sellers
+              return this.firestore
+                .collection('ecommerce_system')
+                .doc('metadata')
+                .collection('sellers')
+                .doc(user.uid)
+                .valueChanges();
+            })
+          );
+      })
+    );
   }
 }

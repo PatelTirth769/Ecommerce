@@ -10,7 +10,116 @@
     <div class="loader">Loading...</div>
   </div>
 
+  <!-- Success Message -->
+  <div *ngIf="successMessage" class="alert alert-success">
+    <span class="alert-icon">&#10003;</span>
+    <span>{{ successMessage }}</span>
+  </div>
+
+  <!-- Error Message -->
+  <div *ngIf="errorMessage" class="alert alert-error">
+    <span class="alert-icon">&#10007;</span>
+    <span>{{ errorMessage }}</span>
+  </div>
+
   <form [formGroup]="sellerForm" (ngSubmit)="onSubmit()" novalidate>
+
+    <!-- Business Details -->
+    <div class="card">
+      <h2>Business Details</h2>
+
+      <div class="grid two">
+        <label>
+          Business Name
+          <input type="text" formControlName="businessName" placeholder="Your business name" />
+        </label>
+
+        <label>
+          Type of Company
+          <select formControlName="companyType">
+            <option value="">Select company type</option>
+            <option value="Sole Proprietor">Sole Proprietor</option>
+            <option value="Partnership">Partnership</option>
+            <option value="Private Limited">Private Limited</option>
+            <option value="LLP">LLP</option>
+            <option value="Public Limited">Public Limited</option>
+            <option value="Other">Other</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="grid two">
+        <label>
+          Company PAN
+          <input type="text" formControlName="companyPan" placeholder="Company PAN (if different)" />
+        </label>
+
+        <label class="upload-box">
+          Company Logo
+          <input type="file" accept=".jpg,.jpeg,.png,.pdf" (change)="selectPhoto($event, 'companyLogoData', 'companyLogo')" />
+          <img *ngIf="companyLogo" [src]="companyLogo" alt="Logo" />
+        </label>
+      </div>
+    </div>
+
+    <!-- Service & Category Selection -->
+    <div class="card">
+      <h2>Service & Category</h2>
+      <p class="section-hint">Select your category type, then choose the categories that match your business</p>
+
+      <div class="grid two">
+        <label>
+          Category Type
+          <select formControlName="categoryType" (change)="onCategoryTypeChange($any($event.target).value)">
+            <option value="">Select type...</option>
+            <option value="service">Service</option>
+            <option value="product">Product</option>
+            <option value="both">Both</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="category-type-group" *ngIf="sellerForm.get('categoryType')?.value">
+        <h3 class="category-type-title">Categories</h3>
+        
+        <div *ngIf="isLoadingCategories" class="loading-text">
+          Fetching categories...
+        </div>
+
+        <div *ngIf="!isLoadingCategories && availableCategories.length === 0" class="no-data-text">
+          No categories found for this type.
+        </div>
+
+        <div class="custom-multiselect" *ngIf="!isLoadingCategories && availableCategories.length > 0">
+          <div class="multiselect-header" (click)="isCategoryDropdownOpen = !isCategoryDropdownOpen">
+            <span *ngIf="selectedCategories.length === 0">Select Categories...</span>
+            <span *ngIf="selectedCategories.length > 0" class="selected-count-text">
+              {{ selectedCategories.length }} categor{{ selectedCategories.length === 1 ? 'y' : 'ies' }} selected
+            </span>
+            <span class="dropdown-arrow" [class.open]="isCategoryDropdownOpen">▼</span>
+          </div>
+
+          <div class="multiselect-panel" *ngIf="isCategoryDropdownOpen">
+            <label class="category-list-item" *ngFor="let cat of availableCategories">
+              <input type="checkbox"
+                     [checked]="isCategorySelected(cat.catID)"
+                     (change)="toggleCategory(cat)" />
+              <span>{{ cat.catName }}</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Selected Chips -->
+        <div class="selected-chips-container" *ngIf="selectedCategories.length > 0">
+          <div class="selected-chip" *ngFor="let cat of selectedCategories">
+            {{ cat.catName }}
+            <span class="chip-remove" (click)="toggleCategory(cat)">×</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Identity Verification -->
     <div class="card">
       <h2>Identity Verification</h2>
 
@@ -19,11 +128,6 @@
           PAN No.
           <input type="text" formControlName="panNo" placeholder="ABCDE1234F" />
         </label>
-
-        <div class="action-row">
-          <button type="button" class="btn info" (click)="verifyPAN()" [disabled]="isPanVerified">Verify PAN</button>
-          <p class="ok" *ngIf="panVerMsg">{{ panVerMsg }}</p>
-        </div>
       </div>
 
       <div class="grid two">
@@ -31,22 +135,9 @@
           Aadhaar Number
           <input type="text" formControlName="aadharNo" maxlength="12" placeholder="12-digit Aadhaar" />
         </label>
-
-        <div class="action-row">
-          <button type="button" class="btn danger" (click)="sendAadharOTP()" [disabled]="isAadharVerified">Send Aadhaar OTP</button>
-        </div>
       </div>
 
-      <div class="grid two" *ngIf="mobileOtpSent && !isAadharVerified">
-        <label>
-          Aadhaar OTP
-          <input type="text" formControlName="aadharOtp" placeholder="Enter OTP" />
-        </label>
-        <div class="action-row">
-          <button type="button" class="btn info" (click)="verifyAadharOTP()">Verify Aadhaar</button>
-        </div>
-      </div>
-      <p class="msg" *ngIf="aadharVerMsg">{{ aadharVerMsg }}</p>
+
 
       <label class="gst-toggle">
         <input type="checkbox" formControlName="isGstRegistered" />
@@ -65,6 +156,7 @@
       </div>
     </div>
 
+    <!-- Bank Details -->
     <div class="card">
       <h2>Bank Details</h2>
 
@@ -80,10 +172,7 @@
         </label>
       </div>
 
-      <div class="action-row">
-        <button type="button" class="btn danger" (click)="verifyBank()" [disabled]="isBankVerified">Verify Bank Details</button>
-        <p class="ok" *ngIf="bankVerMsg">{{ bankVerMsg }}</p>
-      </div>
+
 
       <div class="grid two">
         <label>
@@ -103,9 +192,10 @@
       </label>
     </div>
 
+    <!-- Document Uploads -->
     <div class="card">
       <h2>Document Uploads</h2>
-      <div class="grid four">
+      <div class="grid three">
         <label class="upload-box">
           Profile Photo
           <input type="file" accept=".jpg,.jpeg,.png,.pdf" (change)="selectPhoto($event, 'profilePhotoData', 'profilePhoto')" />
@@ -123,26 +213,21 @@
           <input type="file" accept=".jpg,.jpeg,.png,.pdf" (change)="selectPhoto($event, 'aadharPhotoData', 'aadharPhoto')" />
           <img *ngIf="aadharPhoto" [src]="aadharPhoto" alt="Aadhaar" />
         </label>
-
-        <label class="upload-box">
-          Bank Cheque
-          <input type="file" accept=".jpg,.jpeg,.png,.pdf" (change)="selectPhoto($event, 'bankCancelChqPhotoData', 'bankChequePhoto')" />
-          <img *ngIf="bankChequePhoto" [src]="bankChequePhoto" alt="Cheque" />
-        </label>
       </div>
     </div>
 
+    <!-- Personnel Details -->
     <div class="card">
       <h2>Personnel Details</h2>
 
       <div class="grid two">
         <label>
-          First Name
+          First Name *
           <input type="text" formControlName="firstName" />
         </label>
 
         <label>
-          Last Name
+          Last Name *
           <input type="text" formControlName="lastName" />
         </label>
       </div>
@@ -177,26 +262,13 @@
           Mobile Number
           <input type="text" formControlName="mobile" placeholder="10-digit mobile" maxlength="10" />
         </label>
-
-        <div class="action-row">
-          <button type="button" class="btn danger" (click)="sendOTP()" [disabled]="isMobileVerified">Send Mobile OTP</button>
-        </div>
       </div>
 
-      <div class="grid two" *ngIf="mobileOtpSent && !isMobileVerified">
-        <label>
-          Mobile OTP
-          <input type="text" formControlName="otp" maxlength="6" />
-        </label>
-        <div class="action-row">
-          <button type="button" class="btn info" (click)="verifyOTP()">Verify Mobile</button>
-        </div>
-      </div>
-      <p class="ok" *ngIf="mobileVerMsg">{{ mobileVerMsg }}</p>
+
 
       <div class="grid two">
         <label>
-          Email Address
+          Email Address *
           <input type="email" formControlName="email" />
         </label>
 
@@ -216,38 +288,73 @@
       </div>
       <p class="ok" *ngIf="mailVerMsg">{{ mailVerMsg }}</p>
 
+
+
+      <!-- Password Fields -->
+      <div class="grid two">
+        <label>
+          Password *
+          <div class="password-wrap">
+            <input [type]="showPassword ? 'text' : 'password'" formControlName="password" placeholder="Min 6 characters" />
+            <button type="button" class="password-toggle" (click)="togglePasswordVisibility('password')">
+              {{ showPassword ? '🙈' : '👁️' }}
+            </button>
+          </div>
+        </label>
+
+        <label>
+          Confirm Password *
+          <div class="password-wrap">
+            <input [type]="showConfirmPassword ? 'text' : 'password'" formControlName="confirmPassword" placeholder="Re-enter password" />
+            <button type="button" class="password-toggle" (click)="togglePasswordVisibility('confirmPassword')">
+              {{ showConfirmPassword ? '🙈' : '👁️' }}
+            </button>
+          </div>
+        </label>
+      </div>
+      <p class="error-hint" *ngIf="sellerForm.hasError('mismatch') && cf['confirmPassword'].touched">
+        Passwords do not match
+      </p>
+
+      <!-- Address -->
       <label>
         Address
         <textarea rows="3" formControlName="addressLine1" placeholder="Address"></textarea>
       </label>
 
-      <div class="grid three">
+      <div class="grid two">
         <label>
+          Street
+          <input type="text" formControlName="street" placeholder="Street name" />
+        </label>
+
+        <label>
+          State
+          <input type="text" formControlName="state" placeholder="State" />
+        </label>
+      </div>
+
+      <div class="grid three">
+        <label class="searchable-dropdown">
           City
-          <select formControlName="cityId" (change)="onCityChange($any($event.target).value)">
-            <option value="">Select city</option>
-            <option *ngFor="let city of cities" [value]="city.cityId">{{ city.cityName }}</option>
-          </select>
+          <div class="dropdown-container">
+            <input type="text" [value]="citySearchText" placeholder="Search city..." (input)="filterCities($event)" (focus)="isCityDropdownOpen = true" />
+            <div class="dropdown-panel" *ngIf="isCityDropdownOpen">
+              <div *ngFor="let city of filteredCities" (click)="selectCity(city)" class="dropdown-item">
+                {{ city.cityName }}
+              </div>
+            </div>
+          </div>
         </label>
 
         <label>
           Pincode
           <input type="text" formControlName="pincode" maxlength="6" />
         </label>
-
-        <label>
-          T-Shirt Size
-          <select formControlName="tshirtSize">
-            <option value="">Select size</option>
-            <option value="small">Small</option>
-            <option value="medium">Medium</option>
-            <option value="large">Large</option>
-            <option value="extra_large">Extra Large</option>
-          </select>
-        </label>
       </div>
     </div>
 
+    <!-- Referral Details -->
     <div class="card">
       <h2>Referral Details</h2>
       <div class="grid two">
@@ -255,13 +362,10 @@
           Referral ID
           <input type="text" formControlName="referralId" placeholder="Referral user ID" />
         </label>
-        <div class="action-row">
-          <button type="button" class="btn info" (click)="verifyReferralId()" [disabled]="isReferralVerified">Verify Referral ID</button>
-          <p class="ok" *ngIf="referralVerMsg">{{ referralVerMsg }}</p>
-        </div>
       </div>
     </div>
 
+    <!-- Terms and Conditions -->
     <div class="card terms-card">
       <h2>Terms and Conditions</h2>
       <div class="terms-content-wrap">
@@ -276,6 +380,7 @@
       </div>
     </div>
 
+    <!-- Payment Details -->
     <div class="card payment-card">
       <h2>Payment Details</h2>
       <div class="payment-switch">
@@ -290,16 +395,19 @@
         </label>
       </div>
 
-      <div *ngIf="paymentMethod === 'cheque'">
+      <div *ngIf="paymentMethod === 'cheque'" class="cheque-upload-section">
         <label>
           Upload Cheque Image
           <input type="file" accept="image/*" (change)="onChequeImageUpload($event)" />
         </label>
+        <img *ngIf="chequeImage" [src]="chequeImage" alt="Cheque" class="cheque-preview" />
       </div>
     </div>
 
     <div class="submit-wrap">
-      <button type="submit" class="btn submit" [disabled]="loading">Submit Registration</button>
+      <button type="submit" class="btn submit" [disabled]="loading">
+        {{ loading ? 'Registering...' : 'Submit Registration' }}
+      </button>
     </div>
   </form>
 </section>
