@@ -612,8 +612,7 @@ export class ProductdetailComponent implements OnInit{
     parserNode.innerHTML = decoded;
 
     return (parserNode.textContent || parserNode.innerText || '')
-      .replace(/\s*\n\s*/g, ' ')
-      .replace(/\s+/g, ' ')
+      .replace(/[ \t]+/g, ' ')
       .trim();
   }
 
