@@ -1,10 +1,10 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ItemRecord, WebsiteItem, WebsiteItemService } from '../../services/website-item.service';
 import { Router } from '@angular/router';
 import { CartService } from '../../services/cart.service';
 import { Product } from 'src/app/modules/product/model';
-import { catchError, forkJoin, map, of, Subscription } from 'rxjs';
+import { catchError, forkJoin, map, of } from 'rxjs';
 
 interface ProductMasterItem extends WebsiteItem {
   erpPrice: number;
@@ -16,25 +16,18 @@ interface ProductMasterItem extends WebsiteItem {
   selector: 'app-product-master',
   templateUrl: './product-master.component.html'
 })
-export class ProductMasterComponent implements OnInit, OnDestroy {
+export class ProductMasterComponent implements OnInit {
   items: ProductMasterItem[] = [];
   cart: Product[] = [];
   isLoading = false;
   errorMessage = '';
   private fallbackImage = 'assets/images/logo.png';
-  private cartSub!: Subscription;
 
   constructor(private websiteItemService: WebsiteItemService, private router: Router, private cartService: CartService) {}
 
   ngOnInit(): void {
-    this.cartSub = this.cartService.cart$.subscribe(cart => {
-      this.cart = cart;
-    });
+    this.cart = this.cartService.getCart;
     this.loadItems();
-  }
-
-  ngOnDestroy(): void {
-    this.cartSub?.unsubscribe();
   }
 
   loadItems(): void {
@@ -123,10 +116,12 @@ export class ProductMasterComponent implements OnInit, OnDestroy {
 
   addToCart(item: ProductMasterItem): void {
     this.cartService.add(this.toCartProduct(item));
+    this.cart = this.cartService.getCart;
   }
 
   removeFromCart(item: ProductMasterItem): void {
     this.cartService.remove(this.toCartProduct(item));
+    this.cart = this.cartService.getCart;
   }
 
   isItemInCart(item: ProductMasterItem): boolean {
