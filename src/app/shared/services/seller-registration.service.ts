@@ -70,4 +70,16 @@ export class SellerRegistrationService {
       headers: new HttpHeaders(headers)
     });
   }
+
+  createSupplier(payload: any): Observable<any> {
+    const base = environment.baseAPIURL || '';
+    const baseUrl = !base ? '/' : (base.endsWith('/') ? base : `${base}/`);
+    return this.http.post<any>(`${baseUrl}api/resource/Supplier`, payload, {
+      withCredentials: true,
+      headers: new HttpHeaders({
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      })
+    });
+  }
 }

@@ -4,13 +4,15 @@ import { CardskeletonComponent } from "./widgets/skeleton/cardskeleton/cardskele
 import { AsideskeletonComponent } from "./widgets/skeleton/asideskeleton/asideskeleton.component";
 import { CommonModule } from "@angular/common";
 import { ToastComponent } from "./widgets/toast/toast.component";
+import { SearchableSelectComponent } from "./widgets/searchable-select/searchable-select.component";
 
 @NgModule({
     declarations:[
         CardskeletonComponent,
         AsideskeletonComponent,
         SkeletonComponent,
-        ToastComponent
+        ToastComponent,
+        SearchableSelectComponent
     ],
     imports:[
         CommonModule
@@ -20,7 +22,8 @@ import { ToastComponent } from "./widgets/toast/toast.component";
         CardskeletonComponent,
         AsideskeletonComponent,
         SkeletonComponent,
-        ToastComponent
+        ToastComponent,
+        SearchableSelectComponent
     ]
 })
 

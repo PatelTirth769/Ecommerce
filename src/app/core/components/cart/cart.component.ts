@@ -2,7 +2,8 @@ import { Component,OnDestroy,OnInit } from '@angular/core';
 import { Product } from 'src/app/modules/product/model';
 import { CartService } from '../../services/cart.service';
 import { Router } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { Subscription, interval } from 'rxjs';
+import { switchMap } from 'rxjs/operators';
 
 @Component({
   selector: 'app-cart',
@@ -43,11 +44,25 @@ export class CartComponent implements OnInit, OnDestroy{
   subsDiscount!:Subscription;
   subsEstimatedTotal!:Subscription;
   subsCouponCode!:Subscription;
+  private pollSub!:Subscription;
+  private cartSub!:Subscription;
   constructor(private cartService:CartService,private router:Router){}
 
   ngOnInit(): void {
-    this.getCart();
+    // Subscribe to reactive cart updates
+    this.cartSub = this.cartService.cart$.subscribe(products => {
+      this.cart = products;
+    });
+
     this.getTotal();
+
+    // Refresh cart from ERPNext server immediately (picks up items added on ERPNext webshop)
+    this.cartService.refreshFromServer().subscribe();
+
+    // Poll ERPNext every 30 seconds to stay in sync
+    this.pollSub = interval(30000).pipe(
+      switchMap(() => this.cartService.refreshFromServer())
+    ).subscribe();
   }
   
   getCart(){
@@ -93,6 +108,8 @@ export class CartComponent implements OnInit, OnDestroy{
     this.subsDiscount?.unsubscribe();
     this.subsEstimatedTotal?.unsubscribe();
     this.subsCouponCode?.unsubscribe();
+    this.pollSub?.unsubscribe();
+    this.cartSub?.unsubscribe();
   }
 
   ngOnDestroy(): void {

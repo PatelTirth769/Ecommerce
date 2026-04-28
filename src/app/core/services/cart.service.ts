@@ -102,7 +102,6 @@ export class CartService {
   private readonly couponCodeEndpoint = this.buildApiUrl('api/resource/Coupon%20Code');
   private readonly pricingRuleEndpoint = this.buildApiUrl('api/resource/Pricing%20Rule');
   private readonly cartStorageKey = 'erpnext_active_quotation';
-  private readonly removedCartKeysStorageKey = 'erpnext_removed_cart_keys';
   private readonly cartImageCacheStorageKey = 'erpnext_cart_image_cache';
   private readonly applyCouponEndpoints = [
     this.buildApiUrl('api/method/erpnext.shopping_cart.cart.apply_coupon_code'),
@@ -110,12 +109,23 @@ export class CartService {
   ];
   private readonly getCartQuotationEndpoints = [
     this.buildApiUrl('api/method/erpnext.shopping_cart.cart.get_cart_quotation'),
-    this.buildApiUrl('api/method/erpnext.e_commerce.shopping_cart.cart.get_cart_quotation')
+    this.buildApiUrl('api/method/erpnext.e_commerce.shopping_cart.cart.get_cart_quotation'),
+    this.buildApiUrl('api/method/webshop.shopping_cart.cart.get_cart_quotation'),
+    this.buildApiUrl('api/method/webshop.webshop.shopping_cart.cart.get_cart_quotation')
   ];
+  private readonly updateCartEndpoints = [
+    this.buildApiUrl('api/method/erpnext.shopping_cart.cart.update_cart'),
+    this.buildApiUrl('api/method/erpnext.e_commerce.shopping_cart.cart.update_cart'),
+    this.buildApiUrl('api/method/webshop.shopping_cart.cart.update_cart'),
+    this.buildApiUrl('api/method/webshop.webshop.shopping_cart.cart.update_cart')
+  ];
+  private readonly ADMIN_TOKEN = 'token 764ae0b7b89ab0f:944d939f51e9336';
   private manualCouponRule: PricingRuleRecord | null = null;
 
   private cart: Product[] = [];
   private products = new BehaviorSubject<Product[]>(this.cart);
+  /** Observable stream of cart products — components should subscribe to this */
+  public cart$ = this.products.asObservable();
   public appliedCouponCode = new BehaviorSubject<string>('');
   public totalAmount=new BehaviorSubject<number>(0);
   public shippingAmount = new BehaviorSubject<number>(0);
@@ -130,10 +140,38 @@ export class CartService {
     return this.cart;
   }
 
+  /**
+   * Public method to force-refresh the cart from ERPNext.
+   * Call this when navigating to the cart page to pick up
+   * items added on the ERPNext webshop.
+   */
+  public refreshFromServer(): Observable<Product[]> {
+    return this.loadCart();
+  }
+
   private buildApiUrl(path: string): string {
-    const baseUrl = environment.baseAPIURL.endsWith('/') ? environment.baseAPIURL : `${environment.baseAPIURL}/`;
+    const base = environment.baseAPIURL || '';
+    if (!base) {
+      return path.startsWith('/') ? path : `/${path}`;
+    }
+    const baseUrl = base.endsWith('/') ? base : `${base}/`;
     const normalizedPath = baseUrl.endsWith('/api/') && path.startsWith('api/') ? path.substring(4) : path;
     return `${baseUrl}${normalizedPath}`;
+  }
+
+  private get adminHeaders(): { [key: string]: string } {
+    return { 'Authorization': this.ADMIN_TOKEN };
+  }
+
+  private getCurrentUserEmail(): string {
+    try {
+      const stored = localStorage.getItem('erpnext_user');
+      if (stored) {
+        const user = JSON.parse(stored);
+        return user?.email || user?.name || '';
+      }
+    } catch {}
+    return '';
   }
 
   private getCartKey(product: Product): string {
@@ -142,48 +180,6 @@ export class CartService {
 
   private getStoredQuotationName(): string | null {
     return localStorage.getItem(this.cartStorageKey);
-  }
-
-  private getRemovedCartKeys(): Set<string> {
-    try {
-      const raw = localStorage.getItem(this.removedCartKeysStorageKey);
-      if (!raw) {
-        return new Set<string>();
-      }
-
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) {
-        return new Set<string>();
-      }
-
-      return new Set<string>(parsed.map((value) => String(value).trim().toLowerCase()).filter((value) => value.length > 0));
-    } catch {
-      return new Set<string>();
-    }
-  }
-
-  private setRemovedCartKeys(keys: Set<string>): void {
-    localStorage.setItem(this.removedCartKeysStorageKey, JSON.stringify(Array.from(keys)));
-  }
-
-  private markRemovedCartKey(key: string): void {
-    const keys = this.getRemovedCartKeys();
-    keys.add(key);
-    this.setRemovedCartKeys(keys);
-  }
-
-  private clearRemovedCartKey(key: string): void {
-    const keys = this.getRemovedCartKeys();
-    if (!keys.has(key)) {
-      return;
-    }
-
-    keys.delete(key);
-    this.setRemovedCartKeys(keys);
-  }
-
-  private isRemovedCartKey(key: string): boolean {
-    return this.getRemovedCartKeys().has(key);
   }
 
   private setStoredQuotationName(name: string | null): void {
@@ -761,7 +757,8 @@ export class CartService {
       return image.startsWith('/') ? image : `/${image}`;
     }
 
-    return image.startsWith('/') ? image : `/files/${image}`;
+    const path = image.startsWith('/') ? image : `/files/${image}`;
+    return path;
   }
 
   private mapQuotationItemToProduct(item: QuotationItemRecord, index: number): Product {
@@ -817,88 +814,205 @@ export class CartService {
     }));
   }
 
-  private persistCart(products: Product[]): Observable<void> {
+  /**
+   * Persist the current local cart state to ERPNext as a Quotation document.
+   * Uses REST API (PUT /api/resource/Quotation/{name}) for maximum compatibility.
+   */
+  private persistCartToQuotation(): Observable<Product[]> {
     const quotationName = this.getStoredQuotationName();
-    const payload = {
-      items: this.normalizeQuotationItems(products)
-    };
+    const items = this.normalizeQuotationItems(this.cart);
 
-    if (!quotationName) {
-      return of(void 0);
+    if (quotationName) {
+      return this.http.put<QuotationDocResponse>(
+        `${this.quotationEndpoint}/${encodeURIComponent(quotationName)}`,
+        { items: items },
+        { headers: this.adminHeaders }
+      ).pipe(
+        map(res => {
+          const q = res?.data;
+          const mapped = (q?.items || []).map((item: any, i: number) => this.mapQuotationItemToProduct(item, i));
+          this.updateTotalsFromQuotation(q || {}, mapped);
+          return mapped;
+        }),
+        tap(products => this.syncCart(products)),
+        catchError(err => {
+          console.warn('Failed to update Quotation, trying to create new:', err);
+          // Quotation may have been submitted/cancelled - create a new one
+          this.setStoredQuotationName(null);
+          return this.createQuotationWithItems(items);
+        })
+      );
     }
 
-    return this.http
-      .put<QuotationDocResponse>(`${this.quotationEndpoint}/${encodeURIComponent(quotationName)}`, payload, {
-        withCredentials: true
-      })
-      .pipe(
-        tap((response) => {
-          if (response?.data?.name) {
-            this.setStoredQuotationName(response.data.name);
-          }
+    // No existing quotation - create a new one
+    if (items.length > 0) {
+      return this.createQuotationWithItems(items);
+    }
+    return of(this.cart);
+  }
 
-          if (response?.data) {
-            const quotationItems = Array.isArray(response.data.items) ? response.data.items : [];
-            const mapped = quotationItems.map((item, index) => this.mapQuotationItemToProduct(item, index));
-            this.syncCart(mapped);
-            if (this.manualCouponRule) {
-              this.applyManualPricingRuleToCart(this.manualCouponRule);
-            } else {
-              this.updateTotalsFromQuotation(response.data, mapped);
-            }
-          } else {
-            this.getTotal();
-          }
+  /**
+   * Create a new Draft Quotation with the given items.
+   */
+  private createQuotationWithItems(items: QuotationItemRecord[]): Observable<Product[]> {
+    const userEmail = this.getCurrentUserEmail();
+    const payload: any = {
+      order_type: 'Shopping Cart',
+      docstatus: 0,
+      items: items
+    };
+    if (userEmail) {
+      payload.contact_email = userEmail;
+    }
+
+    return this.http.post<QuotationDocResponse>(
+      this.quotationEndpoint,
+      payload,
+      { headers: this.adminHeaders }
+    ).pipe(
+      map(res => {
+        const q = res?.data;
+        if (q?.name) {
+          this.setStoredQuotationName(q.name);
+        }
+        const mapped = (q?.items || []).map((item: any, i: number) => this.mapQuotationItemToProduct(item, i));
+        this.updateTotalsFromQuotation(q || {}, mapped);
+        return mapped;
+      }),
+      tap(products => this.syncCart(products)),
+      catchError(err => {
+        console.error('Failed to create Quotation:', err);
+        return of(this.cart);
+      })
+    );
+  }
+
+  loadCart(): Observable<Product[]> {
+    return this.refreshCartFromMethodApi().pipe(
+      switchMap(products => {
+        if (products.length > 0) {
+          return of(products);
+        }
+        // Fallback to REST if RPC returns empty (or failed)
+        return this.fetchLatestDraftQuotation();
+      }),
+      tap(products => this.syncCart(products))
+    );
+  }
+
+  private refreshCartFromMethodApi(): Observable<Product[]> {
+    return this.postWithFallback(this.getCartQuotationEndpoints, {})
+      .pipe(
+        map((response) => {
+          const quotation = this.extractQuotationFromMethodResponse(response);
+          const items = Array.isArray(quotation.items) ? quotation.items : [];
+          const mappedItems = items.map((item, index) => this.mapQuotationItemToProduct(item, index));
+          this.updateTotalsFromQuotation(quotation, mappedItems);
+          return mappedItems;
         }),
-        map(() => void 0),
         catchError((error) => {
-          console.warn('Could not sync cart quotation:', error);
-          this.getTotal();
-          return of(void 0);
+          console.warn('ERPNext Method Cart Load Failed (Expected if Shopping Cart disabled):', error);
+          return of([] as Product[]);
         })
       );
   }
 
-  loadCart(): Observable<Product[]> {
-    const quotationName = this.getStoredQuotationName();
+  private updateCartMethodApi(itemCode: string, qty: number): Observable<Product[]> {
+    const formData = new FormData();
+    formData.append('item_code', itemCode);
+    formData.append('qty', String(qty));
+    formData.append('with_items', '1');
 
-    if (quotationName) {
-      return this.fetchQuotation(quotationName).pipe(
-        catchError(() => this.fetchLatestDraftQuotation()),
-        tap((products) => this.syncCart(products))
+    return this.postWithFallback(this.updateCartEndpoints, formData as any)
+      .pipe(
+        map((response) => {
+          const quotation = this.extractQuotationFromMethodResponse(response);
+          const items = Array.isArray(quotation.items) ? quotation.items : [];
+          const mappedItems = items.map((item, index) => this.mapQuotationItemToProduct(item, index));
+          this.updateTotalsFromQuotation(quotation, mappedItems);
+          return mappedItems;
+        }),
+        tap(products => this.syncCart(products)),
+        catchError(error => {
+          console.error('ERPNext Method Cart Update Failed:', error);
+          // Fallback to REST persistence if RPC fails
+          return this.persistCartToQuotation();
+        })
       );
-    }
-
-    return this.fetchLatestDraftQuotation().pipe(tap((products) => this.syncCart(products)));
   }
 
   private fetchLatestDraftQuotation(): Observable<Product[]> {
+    const userEmail = this.getCurrentUserEmail();
+    console.log('[Cart] Fetching draft quotation for user:', userEmail);
+
+    const filterSets: any[][] = [];
+
+    if (userEmail && userEmail !== 'Administrator') {
+      // FOR REGULAR USERS: Only show THEIR cart
+      // Strategy 1: Filter by contact_email
+      filterSets.push([
+        ['Quotation', 'docstatus', '=', 0],
+        ['Quotation', 'order_type', '=', 'Shopping Cart'],
+        ['Quotation', 'contact_email', '=', userEmail]
+      ]);
+      // Strategy 2: Filter by owner
+      filterSets.push([
+        ['Quotation', 'docstatus', '=', 0],
+        ['Quotation', 'order_type', '=', 'Shopping Cart'],
+        ['Quotation', 'owner', '=', userEmail]
+      ]);
+    } else if (userEmail === 'Administrator') {
+      // FOR ADMINISTRATOR: Can see the latest overall cart for debugging
+      filterSets.push([
+        ['Quotation', 'docstatus', '=', 0],
+        ['Quotation', 'order_type', '=', 'Shopping Cart']
+      ]);
+      filterSets.push([
+        ['Quotation', 'docstatus', '=', 0]
+      ]);
+    } else {
+      // GUEST: No server cart sync via REST
+      return of([] as Product[]);
+    }
+
+    return this.tryQuotationFilters(filterSets, 0);
+  }
+
+  private tryQuotationFilters(filterSets: any[][], index: number): Observable<Product[]> {
+    if (index >= filterSets.length) {
+      console.log('[Cart] No quotation found with any filter strategy.');
+      this.setStoredQuotationName(null);
+      this.createEmptyTotals();
+      return of([] as Product[]);
+    }
+
+    const filters = filterSets[index];
     const params = new HttpParams()
-      .set('fields', JSON.stringify(['name']))
-      .set('filters', JSON.stringify([['Quotation', 'docstatus', '=', 0]]))
+      .set('fields', JSON.stringify(['name', 'contact_email', 'owner', 'order_type']))
+      .set('filters', JSON.stringify(filters))
       .set('order_by', 'modified desc')
       .set('limit_page_length', '1');
 
     return this.http
-      .get<QuotationListResponse>(this.quotationEndpoint, {
+      .get<any>(this.quotationEndpoint, {
         params,
-        withCredentials: true
+        headers: this.adminHeaders
       })
       .pipe(
-        map((response) => response?.data?.[0]?.name || ''),
-        switchMap((quotationName) => {
-          if (!quotationName) {
-            this.setStoredQuotationName(null);
-            this.createEmptyTotals();
-            return of([] as Product[]);
+        switchMap((response) => {
+          const quotationData = response?.data?.[0];
+          if (quotationData?.name) {
+            console.log(`[Cart] Found quotation with filter strategy ${index + 1}:`, quotationData);
+            this.setStoredQuotationName(quotationData.name);
+            return this.fetchQuotation(quotationData.name);
           }
-
-          this.setStoredQuotationName(quotationName);
-          return this.fetchQuotation(quotationName);
+          // Try next filter strategy
+          console.log(`[Cart] No result with filter strategy ${index + 1}, trying next...`);
+          return this.tryQuotationFilters(filterSets, index + 1);
         }),
-        catchError(() => {
-          this.createEmptyTotals();
-          return of([] as Product[]);
+        catchError((err) => {
+          console.warn(`[Cart] Filter strategy ${index + 1} error:`, err);
+          return this.tryQuotationFilters(filterSets, index + 1);
         })
       );
   }
@@ -906,21 +1020,20 @@ export class CartService {
   private fetchQuotation(name: string): Observable<Product[]> {
     return this.http
       .get<QuotationDocResponse>(`${this.quotationEndpoint}/${encodeURIComponent(name)}`, {
-        withCredentials: true
+        headers: this.adminHeaders
       })
       .pipe(
         map((response) => {
           const quotation = response?.data;
           const items = Array.isArray(quotation?.items) ? quotation.items : [];
           const mappedItems = items.map((item, index) => this.mapQuotationItemToProduct(item, index));
-          const filteredItems = mappedItems.filter((item) => !this.isRemovedCartKey(this.getCartKey(item)));
           if (this.manualCouponRule) {
-            this.syncCart(filteredItems);
+            this.syncCart(mappedItems);
             this.applyManualPricingRuleToCart(this.manualCouponRule);
           } else {
-            this.updateTotalsFromQuotation(quotation || {}, filteredItems);
+            this.updateTotalsFromQuotation(quotation || {}, mappedItems);
           }
-          return filteredItems;
+          return mappedItems;
         }),
         catchError(() => of([] as Product[]))
       );
@@ -953,11 +1066,21 @@ export class CartService {
       || ''
     ).toLowerCase();
 
-    if (rawMessage.includes('failed to get method for command') || rawMessage.includes('no module named')) {
-      return true;
+    // 404 is the standard "Not Found" status
+    if (status === 404) return true;
+
+    // 417 is "Expectation Failed", often used by Frappe for validation errors.
+    // We only treat it as "Method Not Found" if the message explicitly says so.
+    if (status === 417 || status === 403) {
+      return (
+        rawMessage.includes('failed to get method') || 
+        rawMessage.includes('no module named') ||
+        rawMessage.includes('not found') ||
+        rawMessage.includes('not allowed')
+      );
     }
 
-    return status === 404 || status === 417;
+    return false;
   }
 
   private postWithFallback(
@@ -1109,26 +1232,6 @@ export class CartService {
     return 'Unable to apply coupon. Please try again.';
   }
 
-  private refreshCartFromMethodApi(): Observable<Product[]> {
-    return this.postWithFallback(this.getCartQuotationEndpoints, {})
-      .pipe(
-        map((response) => {
-          const quotation = this.extractQuotationFromMethodResponse(response);
-          const items = Array.isArray(quotation.items) ? quotation.items : [];
-          const mappedItems = items.map((item, index) => this.mapQuotationItemToProduct(item, index));
-          const filteredItems = mappedItems.filter((item) => !this.isRemovedCartKey(this.getCartKey(item)));
-          this.updateTotalsFromQuotation(quotation, filteredItems);
-          return filteredItems;
-        }),
-        tap((products) => this.syncCart(products)),
-        catchError(() => {
-          const fallbackTotal = this.getTotal();
-          this.discountAmount.next(0);
-          this.estimatedTotal.next(fallbackTotal + this.gstAmount.value);
-          return of(this.cart);
-        })
-      );
-  }
 
   public applyCoupon(code: string): Observable<{ success: boolean; message: string; discountAmount: number }> {
     const trimmedCode = String(code || '').trim();
@@ -1141,40 +1244,38 @@ export class CartService {
 
   public add(product:Product){
     const key = this.getCartKey(product);
-    this.clearRemovedCartKey(key);
     const index = this.cart.findIndex((item) => this.getCartKey(item) === key);
-
+    const itemCode = product.item_code || product.type || product.title || '';
+    
+    // Optimistic local update
     if (index >= 0) {
       this.cart[index].qty = (this.cart[index].qty || 1) + 1;
       this.cart[index].totalprice = this.cart[index].price * (this.cart[index].qty || 1);
-      this.cacheProductImage(this.cart[index]);
     } else {
-      const nextProduct = {
-        ...product,
-        qty: 1,
-        totalprice: Number(product.price ?? 0)
-      } as Product;
+      const nextProduct = { ...product, qty: 1, totalprice: Number(product.price ?? 0) } as Product;
       this.cart.push(nextProduct);
-      this.cacheProductImage(nextProduct);
     }
-
+    
     this.products.next(this.cart);
     this.getTotal();
-    void this.persistCart(this.cart).subscribe();
+
+    const newQty = index >= 0 ? this.cart[index].qty : 1;
+    this.updateCartMethodApi(itemCode, newQty || 1).subscribe();
   }
 
   public remove(product:Product){
     const key = this.getCartKey(product);
-    this.markRemovedCartKey(key);
     const index = this.cart.findIndex((item) => this.getCartKey(item) === key);
-
+    const itemCode = product.item_code || product.type || product.title || '';
+    
+    // Optimistic local update
     if (index >= 0) {
-      this.cart.splice(index,1);
+      this.cart.splice(index, 1);
+      this.products.next(this.cart);
+      this.getTotal();
     }
 
-    this.products.next(this.cart);
-    this.getTotal();
-    void this.persistCart(this.cart).subscribe();
+    this.updateCartMethodApi(itemCode, 0).subscribe();
   }
 
   updateQtyAndTotalPrice(item:Product){
@@ -1208,46 +1309,44 @@ export class CartService {
     return total;
   }
   addQty(item:Product){
-    const products=this.getCart;
-    let index=this.find(item);
-    if (index < 0) {
-      return;
+    const index = this.find(item);
+    if (index < 0) return;
+    
+    const totalQty = (this.cart[index].qty || 1) + 1;
+    if (totalQty <= 12) {
+      this.cart[index].qty = totalQty;
+      this.cart[index].totalprice = this.cart[index].price * totalQty;
+      this.products.next(this.cart);
+      this.getTotal();
+      
+      const itemCode = item.item_code || item.type || item.title || '';
+      this.updateCartMethodApi(itemCode, totalQty).subscribe();
     }
-    let totalQty=products[index].qty;
-    if(totalQty!==12){
-      totalQty=totalQty&&totalQty+1;
-    }
-    products[index].qty=totalQty;
-    let subTotal=products[index].price*totalQty!;
-    products[index].totalprice=subTotal;
-    this.products.next(this.cart);
-    this.getTotal();
-    void this.persistCart(this.cart).subscribe();
-
   }
+
   lessQty(item:Product){
-    const products=this.getCart;
-    let index=this.find(item);
-    if (index < 0) {
-      return;
+    const index = this.find(item);
+    if (index < 0) return;
+
+    const totalQty = (this.cart[index].qty || 1) - 1;
+    if (totalQty >= 1) {
+      this.cart[index].qty = totalQty;
+      this.cart[index].totalprice = this.cart[index].price * totalQty;
+      this.products.next(this.cart);
+      this.getTotal();
+
+      const itemCode = item.item_code || item.type || item.title || '';
+      this.updateCartMethodApi(itemCode, totalQty).subscribe();
     }
-    let totalQty=products[index].qty;
-    if(totalQty!==1){
-      totalQty=totalQty&&totalQty-1;
-    }
-    products[index].qty=totalQty;
-    let subTotal=products[index].price*totalQty!;
-    products[index].totalprice=subTotal;
-    this.products.next(this.cart);
-    this.getTotal();
-    void this.persistCart(this.cart).subscribe();
   }
   public clearCart(): void {
+    // For bidirectional sync, we should ideally remove all items from server cart
+    // But as a quick fix, we just clear local state. 
+    // To truly clear the ERPNext cart session-wide, we'd need a clear_cart method or loop update_cart.
     this.cart = [];
     this.products.next(this.cart);
     this.createEmptyTotals();
     this.setStoredQuotationName(null);
-    this.setRemovedCartKeys(new Set<string>());
     this.resetManualCouponState();
   }
   

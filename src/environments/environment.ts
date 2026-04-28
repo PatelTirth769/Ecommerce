@@ -1,8 +1,8 @@
 export const environment = {
   production: false,
   sellerApiDomain: 'https://candidoffers.com:3636/api',
-  baseAPIURL: 'https://ketty.hrhovercraft.in/',
-  fileBaseURL: 'https://ketty.hrhovercraft.in/',
+  baseAPIURL: '',
+  fileBaseURL: '',
   loginEndpoint: 'api/method/login',
   productsEndpoint: 'all-products',
   websiteItemEndpoint: 'api/resource/Website%20Item',

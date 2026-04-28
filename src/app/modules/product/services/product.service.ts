@@ -27,7 +27,7 @@ interface ProductApiShape {
   providedIn: 'root'
 })
 export class ProductService {
-  private readonly url = environment.baseAPIURL + environment.productsEndpoint;
+  private readonly url = (environment.baseAPIURL || '/') + environment.productsEndpoint;
   private readonly fallbackProducts: Product[] = APPROVED_DUMMY_PRODUCTS.map((item) => this.toProduct(item as unknown as ProductApiShape));
 
   products = new BehaviorSubject<Product[]>([]);

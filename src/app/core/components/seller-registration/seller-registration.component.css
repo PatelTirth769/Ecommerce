@@ -585,3 +585,165 @@ textarea {
   font-size: 0.9rem;
   text-align: center;
 }
+
+/* Tabs Styling */
+.tab-nav {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 1px solid #e9e9e9;
+  margin-bottom: 1.5rem;
+  padding: 0 0.5rem;
+  overflow-x: auto;
+  background: #fff;
+  border-radius: 8px 8px 0 0;
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 0.8rem 1rem;
+  font-weight: 600;
+  color: #666;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  font-size: 0.95rem;
+}
+
+.tab-btn:hover {
+  color: #333;
+  background: #f9f9f9;
+}
+
+.tab-btn.active {
+  color: #000;
+  border-bottom-color: #000;
+}
+
+/* Child table styling */
+.table-responsive {
+  width: 100%;
+  overflow: visible;
+  margin-top: 1rem;
+}
+
+.child-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.5rem;
+  background: #fff;
+}
+
+.child-table th {
+  text-align: left;
+  padding: 0.8rem;
+  background: #f8f8f8;
+  border: 1px solid #eee;
+  font-size: 0.85rem;
+  color: #666;
+  font-weight: 600;
+}
+
+.child-table td {
+  padding: 8px 12px;
+  border: 1px solid #f1f1f1;
+  vertical-align: middle;
+  position: relative;
+}
+
+.child-table tr {
+  position: relative;
+}
+
+.child-table tr:hover {
+  z-index: 10;
+}
+
+.table-section-head {
+  margin-top: 1.5rem;
+}
+
+.section-sub-hint {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin: -0.5rem 0 1rem;
+}
+
+.cell-action {
+  text-align: center;
+  color: #9ca3af;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.cell-action:hover {
+  color: #374151;
+}
+
+.child-table th .icon {
+  font-size: 1rem;
+  color: #9ca3af;
+}
+
+.child-table input {
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.child-table .no-data {
+  text-align: center;
+  padding: 2rem;
+  color: #999;
+  font-style: italic;
+}
+
+.add-row-btn {
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 0.5rem;
+  transition: all 0.2s;
+  color: #374151;
+}
+
+.add-row-btn:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.btn-remove {
+  background: #fee2e2;
+  color: #dc2626;
+  border: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.2rem;
+  line-height: 1;
+  transition: all 0.2s;
+}
+
+.btn-remove:hover {
+  background: #fecaca;
+  transform: scale(1.1);
+}
+
+.tab-content {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}

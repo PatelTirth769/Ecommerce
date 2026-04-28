@@ -113,10 +113,24 @@ export class WebsiteItemService {
     'modified'
   ]);
 
+  // REPLACE THESE WITH YOUR ACTUAL ADMIN KEYS FROM ERPNEXT
+  private readonly API_KEY = '764ae0b7b89ab0f';
+  private readonly API_SECRET = '944d939f51e9336';
+
   constructor(private http: HttpClient) {}
 
+  private get authHeaders(): { [header: string]: string } {
+    return {
+      'Authorization': `token ${this.API_KEY}:${this.API_SECRET}`
+    };
+  }
+
   private buildApiUrl(path: string): string {
-    const baseUrl = environment.baseAPIURL.endsWith('/') ? environment.baseAPIURL : `${environment.baseAPIURL}/`;
+    const base = environment.baseAPIURL || '';
+    if (!base) {
+      return path.startsWith('/') ? path : `/${path}`;
+    }
+    const baseUrl = base.endsWith('/') ? base : `${base}/`;
     const normalizedPath = baseUrl.endsWith('/api/') && path.startsWith('api/') ? path.substring(4) : path;
     return `${baseUrl}${normalizedPath}`;
   }
@@ -178,7 +192,8 @@ export class WebsiteItemService {
     return this.http
       .get<WebsiteItemListResponse>(this.endpoint, {
         params,
-        withCredentials: true
+        headers: this.authHeaders,
+        
       })
       .pipe(map((response) => response?.data || []));
   }
@@ -187,7 +202,8 @@ export class WebsiteItemService {
     const cleanName = this.stripVersionSuffix(name);
     return this.http
       .get<WebsiteItemResponse>(`${this.endpoint}/${encodeURIComponent(cleanName)}`, {
-        withCredentials: true
+        headers: this.authHeaders,
+        
       })
       .pipe(map((response) => response?.data));
   }
@@ -202,7 +218,8 @@ export class WebsiteItemService {
     return this.http
       .get<WebsiteItemListResponse>(this.endpoint, {
         params,
-        withCredentials: true
+        headers: this.authHeaders,
+        
       })
       .pipe(map((response) => response?.data?.[0]));
   }
@@ -242,7 +259,8 @@ export class WebsiteItemService {
   getItem(itemCode: string): Observable<ItemRecord> {
     return this.http
       .get<ItemResponse>(`${this.itemEndpoint}/${encodeURIComponent(itemCode)}`, {
-        withCredentials: true
+        headers: this.authHeaders,
+        
       })
       .pipe(map((response) => response?.data));
   }
@@ -267,7 +285,8 @@ export class WebsiteItemService {
     return this.http
       .get<ItemPriceListResponse>(this.itemPriceEndpoint, {
         params,
-        withCredentials: true
+        headers: this.authHeaders,
+        
       })
       .pipe(
         map((response) => {
@@ -295,7 +314,8 @@ export class WebsiteItemService {
     return this.http
       .get<GenericListResponse>(this.itemReviewEndpoint, {
         params,
-        withCredentials: true
+        headers: this.authHeaders,
+        
       })
       .pipe(
         map((response) => response?.data || []),
@@ -308,7 +328,8 @@ export class WebsiteItemService {
             rows.map((row) =>
               this.http
                 .get<GenericDocResponse>(`${this.itemReviewEndpoint}/${encodeURIComponent(row.name)}`, {
-                  withCredentials: true
+                  headers: this.authHeaders,
+                  
                 })
                 .pipe(
                   map((docResponse) => docResponse?.data),

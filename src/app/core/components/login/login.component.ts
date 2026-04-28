@@ -18,7 +18,7 @@ export class LoginComponent implements OnDestroy {
 
   constructor(private formBuilder: FormBuilder, private authService: FirebaseAuthService) {
     this.loginForm = this.formBuilder.group({
-      email: new FormControl('', [Validators.required, Validators.email]),
+      email: new FormControl('', [Validators.required]),
       password: new FormControl('', [Validators.required, Validators.minLength(6)])
     });
 
@@ -31,7 +31,7 @@ export class LoginComponent implements OnDestroy {
 
   async onSubmit(): Promise<void> {
     if (this.loginForm.invalid) {
-      this.errorMessage = 'Please enter a valid email and password (min. 6 characters)';
+      this.errorMessage = 'Please enter a valid username/email and password (min. 6 characters)';
       return;
     }
 
@@ -43,7 +43,11 @@ export class LoginComponent implements OnDestroy {
       // Navigation is handled in service
     } catch (error: any) {
       console.error('Login error:', error);
-      this.errorMessage = error.message || 'Login failed. Please check your credentials and try again.';
+      if (error?.status === 401 || error?.status === 403) {
+        this.errorMessage = 'Invalid username or password.';
+      } else {
+        this.errorMessage = error.message || 'Login failed. Please check your credentials and try again.';
+      }
     } finally {
       this.isLoading = false;
     }

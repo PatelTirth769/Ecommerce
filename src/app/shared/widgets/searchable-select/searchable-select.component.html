@@ -1,0 +1,46 @@
+<div class="searchable-select-container">
+  <div class="input-wrap">
+    <input
+      type="text"
+      [placeholder]="placeholder"
+      [value]="searchTerm"
+      (input)="onInput($event)"
+      (focus)="toggleDropdown()"
+      (blur)="onBlur()"
+      [disabled]="disabled"
+      class="search-input"
+    />
+    <button type="button" class="dropdown-arrow" (click)="toggleDropdown()" [disabled]="disabled">
+      <span [class.open]="showDropdown">▼</span>
+    </button>
+  </div>
+
+  <div class="dropdown-panel" *ngIf="showDropdown">
+    <ul class="options-list" *ngIf="filteredOptions.length > 0">
+      <li
+        *ngFor="let opt of filteredOptions"
+        (mousedown)="selectOption(opt)"
+        class="option-item"
+      >
+        <span class="option-name">{{ opt[displayField] }}</span>
+      </li>
+    </ul>
+    
+    <div class="info-box" *ngIf="infoText && filteredOptions.length > 0">
+      {{ infoText }}
+    </div>
+
+    <div class="no-results" *ngIf="filteredOptions.length === 0">
+      No results found
+    </div>
+
+    <div class="actions-footer" *ngIf="showActions">
+      <div class="action-item create-new">
+        <span class="icon">+</span> Create a new {{ doctypeName }}
+      </div>
+      <div class="action-item advanced-search">
+        <span class="icon">Q</span> Advanced Search
+      </div>
+    </div>
+  </div>
+</div>

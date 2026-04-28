@@ -18,7 +18,7 @@ export class AuthService {
   });
 
   public authState$ = this.authState.asObservable();
-  private apiUrl = environment.baseAPIURL + environment.loginEndpoint;
+  private apiUrl = (environment.baseAPIURL || '/') + environment.loginEndpoint;
 
   constructor(private router: Router, private http: HttpClient) { }
 
@@ -156,7 +156,7 @@ export class AuthService {
   }
 
   private fetchLoggedInUserAndRoles(defaultUser: string): Observable<{ userId: string; roles: string[] }> {
-    return this.http.get<any>(`${environment.baseAPIURL}api/method/frappe.auth.get_logged_user`, {
+    return this.http.get<any>(`${environment.baseAPIURL || '/'}api/method/frappe.auth.get_logged_user`, {
       withCredentials: true
     }).pipe(
       map((res) => ({
@@ -173,7 +173,7 @@ export class AuthService {
   private verifyProtectedRoleApi(): Observable<'ok' | 'forbidden' | 'unauthorized' | 'error'> {
     const params = new HttpParams().set('limit_page_length', '1');
 
-    return this.http.get<any>(`${environment.baseAPIURL}api/resource/Role`, {
+    return this.http.get<any>(`${environment.baseAPIURL || '/'}api/resource/Role`, {
       params,
       withCredentials: true
     }).pipe(

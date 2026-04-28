@@ -2,10 +2,13 @@ import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { FirebaseAuthService } from '../../services/firebase-auth.service';
 
+import { ToastService } from '../../services/toast.service';
+import { Router } from '@angular/router';
+
 @Component({
   selector: 'app-register',
   templateUrl: './register.component.html',
-  styles: []
+  styleUrls: ['./register.component.css']
 })
 export class RegisterComponent implements OnInit {
   registerForm!: FormGroup;
@@ -14,20 +17,22 @@ export class RegisterComponent implements OnInit {
 
   constructor(
     private fb: FormBuilder,
-    private authService: FirebaseAuthService
+    private authService: FirebaseAuthService,
+    private toastService: ToastService,
+    private router: Router
   ) {}
 
   ngOnInit(): void {
     this.registerForm = this.fb.group({
-      firstname: ['', Validators.required],
-      lastname: ['', Validators.required],
       email: ['', [Validators.required, Validators.email]],
       mobile: ['', Validators.required],
-      pan: [''],
-      aadhar: [''],
-      address: [''],
-      city: ['', Validators.required],
-      pincode: [''],
+      username: [''],
+      first_name: ['', Validators.required],
+      middle_name: [''],
+      last_name: ['', Validators.required],
+      language: ['English'],
+      time_zone: ['Asia/Kolkata'],
+      send_welcome_email: [true],
       password: ['', [Validators.required, Validators.minLength(6)]],
       confirmPassword: ['', Validators.required],
       terms: [false, Validators.requiredTrue]
@@ -54,15 +59,10 @@ export class RegisterComponent implements OnInit {
       }
 
       const fieldNames: Record<string, string> = {
-        firstname: 'First Name',
-        lastname: 'Last Name',
+        first_name: 'First Name',
+        last_name: 'Last Name',
         email: 'Email',
         mobile: 'Mobile Number',
-        pan: 'PAN Number',
-        aadhar: 'Aadhaar Number',
-        address: 'Address',
-        city: 'City',
-        pincode: 'Pincode',
         password: 'Password',
         confirmPassword: 'Confirm Password',
         terms: 'Terms and Conditions'
@@ -81,10 +81,23 @@ export class RegisterComponent implements OnInit {
 
     try {
       await this.authService.registerBuyer(this.registerForm.value);
-      // Registration successful, navigation handled in service
+      this.toastService.showSuccess('Registration successful! Please login.');
+      this.router.navigate(['/login']);
     } catch (error: any) {
       console.error(error);
-      this.errorMessage = error.message || 'Failed to register. Please try again.';
+      
+      let serverMessage = '';
+      if (error.error?._server_messages) {
+        try {
+          const messages = JSON.parse(error.error._server_messages);
+          serverMessage = messages.map((m: string) => JSON.parse(m).message).join(' | ');
+        } catch (e) {
+          serverMessage = error.error._server_messages;
+        }
+      }
+
+      this.errorMessage = serverMessage || error.error?.message || error.message || 'Failed to register. Please try again.';
+      this.toastService.showError(this.errorMessage);
     } finally {
       this.isLoading = false;
     }

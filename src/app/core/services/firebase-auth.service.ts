@@ -1,43 +1,189 @@
 import { Injectable } from '@angular/core';
-import { AngularFireAuth } from '@angular/fire/compat/auth';
-import { AngularFirestore } from '@angular/fire/compat/firestore';
 import { Router } from '@angular/router';
-import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { Observable, BehaviorSubject, of } from 'rxjs';
+import { map, catchError, tap } from 'rxjs/operators';
 import { CartService } from './cart.service';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { environment } from 'src/environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class FirebaseAuthService {
-  public user$: Observable<any>;
-  public isLoggedIn$: Observable<boolean>;
-
-  private readonly candidApiUrl = 'https://us-central1-candid-cf9fc.cloudfunctions.net/app';
+  private userSubject = new BehaviorSubject<any>(this.getStoredUser());
+  public user$: Observable<any> = this.userSubject.asObservable();
+  public isLoggedIn$: Observable<boolean> = this.user$.pipe(map(user => !!user));
+  private authChecked = new BehaviorSubject<boolean>(false);
+  public authChecked$ = this.authChecked.asObservable();
 
   constructor(
-    private afAuth: AngularFireAuth,
-    private firestore: AngularFirestore,
     private router: Router,
     private cartService: CartService,
     private http: HttpClient
   ) {
-    this.user$ = this.afAuth.authState;
-    this.isLoggedIn$ = this.afAuth.authState.pipe(map(user => !!user));
+    this.checkLoginStatus();
   }
 
-  // Login
+  private get baseUrl() {
+    const base = environment.baseAPIURL || '';
+    if (!base) return '/';
+    return base.endsWith('/') ? base : `${base}/`;
+  }
+
+  // Check Auth State on App Load
+  checkLoginStatus(): void {
+    this.http.get<{message: string}>(`${this.baseUrl}api/method/frappe.auth.get_logged_user`, { withCredentials: true })
+      .subscribe({
+        next: (res) => {
+          if (res.message && res.message !== 'Guest') {
+            this.fetchUserDetails(res.message);
+          } else {
+            this.clearStoredUser();
+            this.userSubject.next(null);
+            this.authChecked.next(true);
+          }
+        },
+        error: () => {
+          this.clearStoredUser();
+          this.userSubject.next(null);
+          this.authChecked.next(true);
+        }
+      });
+  }
+
+  // Fetch Full User Details from ERPNext
+  async fetchUserDetails(email: string): Promise<void> {
+    const headers = {
+      'Authorization': `token ${this.API_KEY}:${this.API_SECRET}`
+    };
+    
+    try {
+      const res: any = await this.http.get(`${this.baseUrl}api/resource/User/${email}`, { headers, withCredentials: true }).toPromise();
+      if (res && res.data) {
+        this.storeUser(res.data);
+        this.userSubject.next(res.data);
+      }
+    } catch (error) {
+      console.error('Error fetching user details:', error);
+      // Fallback to basic info if full fetch fails
+      const fallbackUser = { email: email, uid: email };
+      this.storeUser(fallbackUser);
+      this.userSubject.next(fallbackUser);
+    } finally {
+      this.authChecked.next(true);
+      // Always try to load the cart once we have a user context
+      this.cartService.loadCart().subscribe();
+    }
+  }
+
+  private storeUser(user: any): void {
+    localStorage.setItem('erpnext_user', JSON.stringify(user));
+  }
+
+  private getStoredUser(): any {
+    const stored = localStorage.getItem('erpnext_user');
+    return stored ? JSON.parse(stored) : null;
+  }
+
+  private clearStoredUser(): void {
+    localStorage.removeItem('erpnext_user');
+  }
+
+  // ERPNext Login
   async login(email: string, password: string): Promise<any> {
     try {
-      const credential = await this.afAuth.signInWithEmailAndPassword(email, password);
-      this.router.navigate(['/profile']);
-      return credential;
+      await this.http.post(`${this.baseUrl}api/method/login`, { usr: email, pwd: password }, { withCredentials: true }).toPromise();
+      await this.fetchUserDetails(email);
+      this.router.navigate(['/']);
+      return { email: email };
     } catch (error) {
-      console.error('Login Error:', error);
+      console.error('ERPNext Login Error:', error);
       throw error;
     }
+  }
+
+  // ERPNext Logout
+  async logout(): Promise<void> {
+    try {
+      await this.http.post(`${this.baseUrl}api/method/logout`, {}, { withCredentials: true }).toPromise();
+    } catch (e) {
+      console.warn('Backend logout failed or already logged out', e);
+    }
+    
+    this.clearStoredUser();
+    this.userSubject.next(null);
+    this.authChecked.next(true);
+    this.cartService.clearCart();
+    this.router.navigate(['/login']);
+  }
+
+  // Check Auth State (Sync)
+  async isLoggedIn(): Promise<boolean> {
+    return !!this.userSubject.value;
+  }
+
+  // Stubs for Firebase Registration (Pending ERPNext implementation)
+  // ERPNext Registration for Buyers
+  // REPLACE THESE WITH YOUR ACTUAL ADMIN KEYS FROM ERPNEXT
+  private readonly API_KEY = '764ae0b7b89ab0f';
+  private readonly API_SECRET = '944d939f51e9336';
+
+  async registerBuyer(buyerData: any): Promise<any> {
+    const fullName = [buyerData.first_name, buyerData.middle_name, buyerData.last_name]
+      .filter(n => n)
+      .join(' ');
+
+    const userPayload = {
+      email: buyerData.email,
+      first_name: buyerData.first_name,
+      middle_name: buyerData.middle_name,
+      last_name: buyerData.last_name,
+      username: buyerData.username,
+      mobile_no: buyerData.mobile,
+      new_password: buyerData.password,
+      language: buyerData.language,
+      time_zone: buyerData.time_zone,
+      send_welcome_email: buyerData.send_welcome_email ? 1 : 0,
+      enabled: 1,
+      roles: [
+        { role: 'Customer' }
+      ]
+    };
+
+    const customerPayload = {
+      customer_name: fullName,
+      customer_type: 'Individual',
+      customer_group: 'All Customer Groups',
+      territory: 'All Territories',
+      email_id: buyerData.email,
+      mobile_no: buyerData.mobile
+    };
+
+    const headers = {
+      'Authorization': `token ${this.API_KEY}:${this.API_SECRET}`
+    };
+
+    try {
+      // 1. Create User
+      const userRes = await this.http.post(`${this.baseUrl}api/resource/User`, userPayload, { headers, withCredentials: true }).toPromise();
+      
+      // 2. Create Customer
+      try {
+        await this.http.post(`${this.baseUrl}api/resource/Customer`, customerPayload, { headers, withCredentials: true }).toPromise();
+      } catch (custError) {
+        console.error('ERPNext Customer Creation Error (User was created):', custError);
+        // We don't throw here to avoid failing registration if user is created but customer fails (e.g. exists)
+      }
+
+      return userRes;
+    } catch (error) {
+      console.error('ERPNext Registration Error:', error);
+      throw error;
+    }
+  }
+
+  async registerSeller(sellerData: any): Promise<any> {
+    throw new Error("Firebase registration is disabled. ERPNext registration is pending.");
   }
 
   // Get Candid Categories from external Firestore project via REST API
@@ -56,7 +202,6 @@ export class FirebaseAuthService {
           };
         });
 
-        // If type is not 'both', filter locally to ignore case sensitivity
         if (type && type !== 'both') {
           const targetType = type.toLowerCase();
           docs = docs.filter((d: any) => d.catType && d.catType.toLowerCase() === targetType);
@@ -65,151 +210,5 @@ export class FirebaseAuthService {
         return docs;
       })
     );
-  }
-
-  // Register Buyer
-  async registerBuyer(buyerData: any): Promise<any> {
-    try {
-      // 1. Create Auth User
-      const credential = await this.afAuth.createUserWithEmailAndPassword(buyerData.email, buyerData.password);
-      const uid = credential.user?.uid;
-
-      if (uid) {
-        // 2. Remove password from data before saving to Firestore
-        const { password, confirmPassword, terms, ...profileData } = buyerData;
-        profileData.role = 'buyer';
-        profileData.createdAt = new Date().toISOString();
-
-        // 3. Save profile to Firestore: ecommerce_system/metadata/buyers/{uid}
-        await this.firestore.collection('ecommerce_system').doc('metadata').collection('buyers').doc(uid).set(profileData);
-        
-        this.router.navigate(['/profile']);
-        return credential;
-      }
-    } catch (error) {
-      console.error('Registration Error:', error);
-      throw error;
-    }
-  }
-
-  // Register Seller — Dual storage: YOUR Firestore + Candid API
-  async registerSeller(sellerData: any): Promise<any> {
-    console.log('[AuthService] ========== registerSeller START ==========');
-    console.log('[AuthService] Email:', sellerData.email);
-    console.log('[AuthService] Full Name:', sellerData.userFullName);
-    console.log('[AuthService] Mobile:', sellerData.userMobile1);
-    console.log('[AuthService] Business:', sellerData.userBusinessName);
-    try {
-      // 1. Create Firebase Auth user in YOUR project (email + password for web login)
-      console.log('[AuthService] Step 1: Creating Firebase Auth user...');
-      const credential = await this.afAuth.createUserWithEmailAndPassword(sellerData.email, sellerData.password);
-      const uid = credential.user?.uid;
-      console.log('[AuthService] Step 1 ✅ Auth user created. UID:', uid);
-
-      if (!uid) {
-        throw new Error('Failed to create user account — no UID returned');
-      }
-
-      const now = new Date().toISOString();
-
-      // 2. Build the profile data for YOUR Firestore (ecommerce_system/metadata/sellers/{uid})
-      const localProfile: Record<string, any> = {
-        role: 'seller',
-        email: sellerData.email,
-        createdAt: now,
-        userFullName: sellerData.userFullName || '',
-        userEmail1: sellerData.email || '',
-        userMobile1: sellerData.userMobile1 || '',
-        mobileCode: 'IN +91',
-        userGender: sellerData.userGender || '',
-        userBusinessName: sellerData.userBusinessName || '',
-        userSelectedTypeOfCompany: sellerData.userSelectedTypeOfCompany || '',
-        CompanyPan: sellerData.CompanyPan || '',
-        userPanNo: sellerData.userPanNo || '',
-        aadhaarNo: sellerData.aadhaarNo || '',
-        userGstNo: sellerData.userGstNo || '',
-        userAddress: sellerData.userAddress || '',
-        userAddressLine1: sellerData.userAddressLine1 || '',
-        userAddressLine2: sellerData.userAddressLine2 || '',
-        userAddressStreet: sellerData.userAddressStreet || '',
-        userAddressCity: sellerData.userAddressCity || '',
-        userAddressPinCode: sellerData.userAddressPinCode || '',
-        userAddressState: sellerData.userAddressState || '',
-        bankAccountHolderName: sellerData.bankAccountHolderName || '',
-        bankAccountHolderAcNumber: sellerData.bankAccountHolderAcNumber || '',
-        bankAccountHolderAc1Number: sellerData.bankAccountHolderAcNumber || '',
-        bankAccountHolderIFSC: sellerData.bankAccountHolderIFSC || '',
-        bankAccountHolderIFSC1: sellerData.bankAccountHolderIFSC || '',
-        bankAccountHolderBankName: sellerData.bankAccountHolderBankName || '',
-        bankAccountHolderBankBranch: sellerData.bankAccountHolderBankBranch || '',
-        userProfilePic: sellerData.userProfilePic || '',
-        panCardImage: sellerData.panCardImage || '',
-        aadhaarCardImage: sellerData.aadhaarCardImage || '',
-        userCompanyLogo: sellerData.userCompanyLogo || '',
-        paymentMethod: sellerData.paymentMethod || 'cheque',
-        paymentStatus: sellerData.paymentStatus || 'pending',
-        chequeImage: sellerData.chequeImage || '',
-        profileStatus: 'under_review',
-        isActive: true,
-        isApproved: false,
-        isFirstTimeSubscription: false,
-        referredBy: sellerData.referredBy || '',
-        championName: sellerData.championName || '',
-        championMobile: sellerData.championMobile || '',
-        selectedCatsList: sellerData.selectedCatsList || [],
-        offerCount: 0,
-        firebaseMessagingToken: '',
-        candidOfferSubscriptionStartDate: null,
-        candidOfferSubscriptionEndDate: null,
-        offerSubscriptionEndDate: null,
-        fatherHusbandName: sellerData.fatherHusbandName || '',
-        fatherHusbandRelation: sellerData.fatherHusbandRelation || '',
-        tshirtSize: sellerData.tshirtSize || '',
-        panVerified: sellerData.panVerified || false,
-        bankVerified: sellerData.bankVerified || false,
-        aadharVerified: sellerData.aadharVerified || false,
-        gstVerified: sellerData.gstVerified || false,
-      };
-
-      // Save to YOUR Firestore
-      console.log('[AuthService] Step 2: Saving profile to Firestore at ecommerce_system/metadata/sellers/' + uid);
-      console.log('[AuthService] Profile fields count:', Object.keys(localProfile).length);
-      await this.firestore
-        .collection('ecommerce_system')
-        .doc('metadata')
-        .collection('sellers')
-        .doc(uid)
-        .set(localProfile);
-      console.log('[AuthService] Step 2 ✅ Firestore save successful');
-
-      console.log('[AuthService] ========== registerSeller COMPLETE ✅ ==========');
-      return { uid, credential };
-    } catch (error: any) {
-      console.error('[AuthService] ========== registerSeller FAILED ❌ ==========');
-      console.error('[AuthService] Error code:', error?.code);
-      console.error('[AuthService] Error message:', error?.message);
-      console.error('[AuthService] Full error:', error);
-      throw error;
-    }
-  }
-
-  // Logout
-  async logout(): Promise<void> {
-    try {
-      // Clear the ERPNext backend session to prevent guest cart bleeding
-      await this.http.post(`${environment.baseAPIURL}/api/method/logout`, {}, { withCredentials: true }).toPromise().catch(() => {});
-    } catch (e) {
-      // Ignore errors if already logged out of backend
-    }
-    
-    this.cartService.clearCart();
-    await this.afAuth.signOut();
-    this.router.navigate(['/login']);
-  }
-
-  // Check Auth State (Sync)
-  async isLoggedIn(): Promise<boolean> {
-    const user = await this.afAuth.currentUser;
-    return !!user;
   }
 }

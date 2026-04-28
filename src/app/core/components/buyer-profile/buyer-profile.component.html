@@ -1,255 +1,137 @@
-<div class="min-h-screen bg-gray-50 py-10">
-    <div class="container mx-auto px-4 max-w-6xl">
-        
-        <!-- Header -->
-        <div class="mb-8">
-            <h1 class="text-3xl font-bold text-gray-900">My Account</h1>
-            <p class="text-gray-500 mt-1">Manage your profile and account settings</p>
+<div class="erp-profile-page bg-[#f4f5f6] min-h-screen p-6 font-sans">
+  <ng-container *ngIf="(profileData$ | async) as profile; else loading">
+    
+    <!-- ERPNext Style Header -->
+    <div class="max-w-[1100px] mx-auto bg-white rounded-t-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div class="flex justify-between items-center px-6 py-4 border-b border-gray-200">
+        <div class="flex items-center gap-4">
+          <span class="text-xl text-gray-500">☰</span>
+          <h2 class="text-xl font-bold text-gray-900">{{ profile.full_name || profile.name }}</h2>
+          <span class="bg-green-50 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border border-green-100">
+            {{ profile.enabled ? 'Active' : 'Disabled' }}
+          </span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button class="bg-[#f3f4f6] border border-gray-300 text-gray-700 px-3 py-1.5 rounded-md text-sm font-semibold hover:bg-gray-100 transition-all">Permissions</button>
+          <button class="bg-[#f3f4f6] border border-gray-300 text-gray-700 px-3 py-1.5 rounded-md text-sm font-semibold hover:bg-gray-100 transition-all">Password</button>
+          <button class="bg-[#f3f4f6] border border-gray-300 text-gray-700 px-3 py-1.5 rounded-md text-sm font-semibold hover:bg-gray-100 transition-all">Create User Email</button>
+          <button class="bg-gray-900 text-white px-4 py-1.5 rounded-md text-sm font-semibold hover:bg-black transition-all ml-4">Save</button>
+        </div>
+      </div>
+
+      <!-- ERPNext Style Tabs -->
+      <div class="flex gap-8 px-6 border-b border-gray-200 overflow-x-auto">
+        <div class="tab-item active border-b-2 border-gray-900 py-3 text-sm font-semibold text-gray-900 cursor-pointer">User Details</div>
+        <div class="tab-item py-3 text-sm font-semibold text-gray-500 cursor-pointer hover:text-gray-900">Roles & Permissions</div>
+        <div class="tab-item py-3 text-sm font-semibold text-gray-500 cursor-pointer hover:text-gray-900">More Information</div>
+        <div class="tab-item py-3 text-sm font-semibold text-gray-500 cursor-pointer hover:text-gray-900">Settings</div>
+        <div class="tab-item py-3 text-sm font-semibold text-gray-500 cursor-pointer hover:text-gray-900">Connections</div>
+      </div>
+
+      <div class="p-8">
+        <!-- Enabled Toggle -->
+        <div class="flex items-center gap-3 mb-8">
+          <input type="checkbox" [checked]="profile.enabled" disabled class="w-4 h-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900">
+          <label class="text-sm font-bold text-gray-700">Enabled</label>
         </div>
 
-        <!-- Loading State -->
-        <ng-container *ngIf="(authService.isLoggedIn$ | async) === null">
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-12 flex justify-center">
-                <i class="fa-solid fa-spinner fa-spin text-blue-600 text-3xl"></i>
-            </div>
-        </ng-container>
-
-        <!-- Not Logged In -->
-        <ng-container *ngIf="(authService.isLoggedIn$ | async) === false">
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col items-center justify-center p-12 text-center">
-                <div class="w-16 h-16 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center text-2xl mb-4">
-                    <i class="fa-solid fa-lock"></i>
+        <!-- Basic Info Section -->
+        <div class="mb-12">
+          <h3 class="text-md font-bold text-gray-900 mb-6">Basic Info</h3>
+          
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-x-12 gap-y-6">
+            <!-- Col 1 -->
+            <div class="space-y-6">
+              <div>
+                <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Email *</label>
+                <div class="w-full bg-[#f9fafb] border border-transparent rounded-md px-3 py-2 text-sm text-gray-700">
+                  {{ profile.email }}
                 </div>
-                <h2 class="text-2xl font-bold text-gray-900 mb-2">Please Sign In</h2>
-                <p class="text-gray-500 max-w-md mb-6">You need to be logged in to view your profile and details.</p>
-                <a [routerLink]="['/login']" class="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors">
-                    Sign In to Continue
-                </a>
-            </div>
-        </ng-container>
-
-        <!-- Profile Data -->
-        <ng-container *ngIf="(authService.isLoggedIn$ | async) && (profileData$ | async) as profile">
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                
-                <!-- Sidebar: Profile Overview -->
-                <div class="space-y-6">
-                    
-                    <!-- User Card -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col items-center text-center">
-                        <div class="relative mb-4">
-                            <div class="w-28 h-28 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-4xl font-bold border-4 border-white shadow-md overflow-hidden">
-                                <img *ngIf="profile.userProfilePic" [src]="profile.userProfilePic" class="w-full h-full object-cover" />
-                                <span *ngIf="!profile.userProfilePic">
-                                    {{ (profile.firstname || profile.userFullName || '?')?.charAt(0) | uppercase }}
-                                </span>
-                            </div>
-                            <div class="absolute bottom-1 right-1 w-6 h-6 bg-green-500 border-4 border-white rounded-full"></div>
-                        </div>
-                        
-                        <h2 class="text-xl font-bold text-gray-900">
-                            {{ profile.userFullName || (profile.firstname + ' ' + profile.lastname) }}
-                        </h2>
-                        <p class="text-gray-500 text-sm mt-1">{{ profile.email || profile.userEmail1 }}</p>
-                        
-                        <div class="mt-4 flex gap-2">
-                            <span *ngIf="profile.role === 'seller'" class="bg-purple-100 text-purple-700 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
-                                Seller Account
-                            </span>
-                            <span *ngIf="profile.role === 'buyer'" class="bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
-                                Buyer Account
-                            </span>
-                        </div>
-                    </div>
-
-                    <!-- Contact Quick Info -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                        <h3 class="text-md font-bold text-gray-900 mb-4 border-b pb-2 flex items-center gap-2">
-                            <i class="fa-solid fa-address-book text-gray-400"></i>
-                            Contact Details
-                        </h3>
-                        <div class="space-y-4">
-                            <div>
-                                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Mobile Number</label>
-                                <p class="text-gray-900 font-semibold">{{ profile.userMobile1 || profile.mobile || 'Not provided' }}</p>
-                            </div>
-                            <div>
-                                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Address</label>
-                                <p class="text-gray-800 text-sm leading-relaxed">
-                                    {{ profile.userAddress || profile.address }}<br>
-                                    <span class="font-medium">{{ profile.userAddressCity || profile.city }}</span>, 
-                                    {{ profile.userAddressPinCode || profile.pincode }}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Account Status (Sellers only) -->
-                    <div *ngIf="profile.role === 'seller'" class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                        <h3 class="text-md font-bold text-gray-900 mb-4 border-b pb-2 flex items-center gap-2">
-                            <i class="fa-solid fa-shield-check text-gray-400"></i>
-                            Verification Status
-                        </h3>
-                        <div class="space-y-3">
-                            <div class="flex items-center justify-between text-sm">
-                                <span class="text-gray-600">PAN Card</span>
-                                <span [class]="profile.panVerified ? 'text-green-600 font-bold' : 'text-amber-500 font-bold'">
-                                    {{ profile.panVerified ? 'Verified' : 'Pending' }}
-                                </span>
-                            </div>
-                            <div class="flex items-center justify-between text-sm">
-                                <span class="text-gray-600">Aadhaar Card</span>
-                                <span [class]="profile.aadharVerified ? 'text-green-600 font-bold' : 'text-amber-500 font-bold'">
-                                    {{ profile.aadharVerified ? 'Verified' : 'Pending' }}
-                                </span>
-                            </div>
-                            <div class="flex items-center justify-between text-sm">
-                                <span class="text-gray-600">Bank Account</span>
-                                <span [class]="profile.bankVerified ? 'text-green-600 font-bold' : 'text-amber-500 font-bold'">
-                                    {{ profile.bankVerified ? 'Verified' : 'Pending' }}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">First Name *</label>
+                <div class="w-full bg-[#f9fafb] border border-transparent rounded-md px-3 py-2 text-sm text-gray-700">
+                  {{ profile.first_name }}
                 </div>
-
-                <!-- Main Content Area -->
-                <div class="lg:col-span-2 space-y-8">
-                    
-                    <!-- Business Details (Sellers Only) -->
-                    <div *ngIf="profile.role === 'seller'" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                        <div class="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-                            <h3 class="text-lg font-bold text-gray-900">Business Information</h3>
-                            <i class="fa-solid fa-briefcase text-gray-400"></i>
-                        </div>
-                        <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Business Name</label>
-                                <p class="text-gray-900 font-semibold text-lg">{{ profile.userBusinessName }}</p>
-                            </div>
-                            <div>
-                                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Company Type</label>
-                                <p class="text-gray-900 font-semibold">{{ profile.userSelectedTypeOfCompany }}</p>
-                            </div>
-                            <div>
-                                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">GST Number</label>
-                                <p class="text-gray-900 font-semibold">{{ profile.userGstNo || 'Not Registered' }}</p>
-                            </div>
-                            <div>
-                                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Category Type</label>
-                                <p class="text-gray-900 font-semibold capitalize">{{ profile.categoryType }}</p>
-                            </div>
-                            <div class="md:col-span-2">
-                                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 block">Selected Categories</label>
-                                <div class="flex flex-wrap gap-2">
-                                    <span *ngFor="let cat of profile.selectedCatsList" class="bg-gray-100 text-gray-700 px-3 py-1 rounded text-xs font-medium">
-                                        {{ cat.catName }}
-                                    </span>
-                                    <p *ngIf="!profile.selectedCatsList?.length" class="text-gray-400 italic text-sm">No categories selected</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Bank Details (Sellers Only) -->
-                    <div *ngIf="profile.role === 'seller'" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                        <div class="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-                            <h3 class="text-lg font-bold text-gray-900">Bank Account Details</h3>
-                            <i class="fa-solid fa-building-columns text-gray-400"></i>
-                        </div>
-                        <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Account Holder</label>
-                                <p class="text-gray-900 font-semibold">{{ profile.bankAccountHolderName }}</p>
-                            </div>
-                            <div>
-                                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Account Number</label>
-                                <p class="text-gray-900 font-semibold">{{ profile.bankAccountHolderAcNumber }}</p>
-                            </div>
-                            <div>
-                                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Bank Name</label>
-                                <p class="text-gray-900 font-semibold">{{ profile.bankAccountHolderBankName }}</p>
-                            </div>
-                            <div>
-                                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">IFSC Code</label>
-                                <p class="text-gray-900 font-semibold uppercase">{{ profile.bankAccountHolderIFSC }}</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Identity & Tax Details (Common) -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                        <div class="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-                            <h3 class="text-lg font-bold text-gray-900">Identity Information</h3>
-                            <i class="fa-solid fa-id-card text-gray-400"></i>
-                        </div>
-                        <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">PAN Number</label>
-                                <p class="text-gray-900 font-semibold uppercase">{{ profile.userPanNo || profile.pan || 'Not provided' }}</p>
-                            </div>
-                            <div>
-                                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Aadhaar Number</label>
-                                <p class="text-gray-900 font-semibold">{{ profile.aadhaarNo || profile.aadhar || 'Not provided' }}</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Uploaded Documents Preview (Sellers Only) -->
-                    <div *ngIf="profile.role === 'seller'" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                        <div class="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-                            <h3 class="text-lg font-bold text-gray-900">Document Previews</h3>
-                            <i class="fa-solid fa-file-image text-gray-400"></i>
-                        </div>
-                        <div class="p-6 grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-                            <div>
-                                <label class="text-[10px] font-bold text-gray-400 uppercase mb-2 block">PAN Card</label>
-                                <div class="h-32 bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
-                                    <img *ngIf="profile.panCardImage" [src]="profile.panCardImage" class="w-full h-full object-contain" />
-                                    <div *ngIf="!profile.panCardImage" class="flex items-center justify-center h-full text-gray-300">
-                                        <i class="fa-solid fa-image text-2xl"></i>
-                                    </div>
-                                </div>
-                            </div>
-                            <div>
-                                <label class="text-[10px] font-bold text-gray-400 uppercase mb-2 block">Aadhaar Card</label>
-                                <div class="h-32 bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
-                                    <img *ngIf="profile.aadhaarCardImage" [src]="profile.aadhaarCardImage" class="w-full h-full object-contain" />
-                                    <div *ngIf="!profile.aadhaarCardImage" class="flex items-center justify-center h-full text-gray-300">
-                                        <i class="fa-solid fa-image text-2xl"></i>
-                                    </div>
-                                </div>
-                            </div>
-                            <div>
-                                <label class="text-[10px] font-bold text-gray-400 uppercase mb-2 block">Cancel Cheque</label>
-                                <div class="h-32 bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
-                                    <img *ngIf="profile.chequeImage" [src]="profile.chequeImage" class="w-full h-full object-contain" />
-                                    <div *ngIf="!profile.chequeImage" class="flex items-center justify-center h-full text-gray-300">
-                                        <i class="fa-solid fa-image text-2xl"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Order History (Common) -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                        <div class="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-                            <h3 class="text-lg font-bold text-gray-900">Recent Orders</h3>
-                            <span class="text-xs font-semibold bg-gray-200 text-gray-600 px-2 py-0.5 rounded">0 Total</span>
-                        </div>
-                        <div class="p-12 flex flex-col items-center justify-center text-center">
-                            <div class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center text-gray-300 text-2xl mb-4">
-                                <i class="fa-solid fa-box-open"></i>
-                            </div>
-                            <h4 class="text-gray-900 font-bold">No orders found</h4>
-                            <p class="text-gray-500 text-sm max-w-xs mt-1">Activity related to purchases or sales will appear here.</p>
-                        </div>
-                    </div>
-
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Middle Name</label>
+                <div class="w-full bg-[#f9fafb] border border-transparent rounded-md px-3 py-2 text-sm text-gray-700">
+                  {{ profile.middle_name || '&nbsp;' }}
                 </div>
-
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Last Name</label>
+                <div class="w-full bg-[#f9fafb] border border-transparent rounded-md px-3 py-2 text-sm text-gray-700">
+                  {{ profile.last_name || '&nbsp;' }}
+                </div>
+              </div>
             </div>
-        </ng-container>
+
+            <!-- Col 2 -->
+            <div class="space-y-6">
+              <div>
+                <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Full Name</label>
+                <div class="w-full bg-[#f9fafb] border border-transparent rounded-md px-3 py-2 text-sm text-gray-700">
+                  {{ profile.full_name }}
+                </div>
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Username</label>
+                <div class="w-full bg-[#f9fafb] border border-transparent rounded-md px-3 py-2 text-sm text-gray-700">
+                  {{ profile.username || '&nbsp;' }}
+                </div>
+              </div>
+            </div>
+
+            <!-- Col 3 -->
+            <div class="space-y-6">
+              <div>
+                <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Language</label>
+                <div class="w-full bg-[#f9fafb] border border-transparent rounded-md px-3 py-2 text-sm text-gray-700">
+                  {{ profile.language || 'English' }}
+                </div>
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Time Zone</label>
+                <div class="w-full bg-[#f9fafb] border border-transparent rounded-md px-3 py-2 text-sm text-gray-700">
+                  {{ profile.time_zone || 'Asia/Kolkata' }}
+                </div>
+              </div>
+              <div class="flex items-center gap-3 pt-2">
+                <input type="checkbox" [checked]="profile.send_welcome_email" disabled class="w-4 h-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900">
+                <label class="text-sm font-bold text-gray-700">Send Welcome Email</label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="border-t border-gray-100 pt-8 mt-12">
+            <h4 class="text-md font-bold text-gray-900 mb-6">Activity & Metadata</h4>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Creation</label>
+                    <p class="text-xs text-gray-600">{{ profile.creation | date:'medium' }}</p>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Last Active</label>
+                    <p class="text-xs text-gray-600">{{ profile.last_active | date:'medium' }}</p>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">User Type</label>
+                    <p class="text-xs text-gray-600 font-semibold">{{ profile.user_type }}</p>
+                </div>
+            </div>
+        </div>
+
+      </div>
     </div>
+  </ng-container>
+
+  <ng-template #loading>
+    <div class="flex flex-col items-center justify-center min-h-[60vh]">
+      <div class="w-12 h-12 border-4 border-gray-200 border-t-gray-900 rounded-full animate-spin"></div>
+      <p class="mt-4 text-gray-500 font-medium tracking-wide uppercase text-[10px]">Loading User Profile...</p>
+    </div>
+  </ng-template>
 </div>
