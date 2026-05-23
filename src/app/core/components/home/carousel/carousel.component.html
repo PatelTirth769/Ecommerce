@@ -1,8 +1,8 @@
 
 <div class="relative w-full">
     <div class="relative h-40 overflow-hidden rounded-lg md:h-96" #sliderRef>
-        <div class="duration-700 ease-in-out" *ngFor="let image of slideImages; let index">
-            <img [src]="image" class="absolute block w-full -translate-x-1/2 -translate-y-1/2 top-1/2 left-1/2" [alt]="index">
+        <div class="duration-700 ease-in-out" *ngFor="let image of slideImages; let i = index">
+            <img [src]="image" class="absolute block w-full h-full object-cover -translate-x-1/2 -translate-y-1/2 top-1/2 left-1/2" [alt]="'Slide ' + i">
         </div>
     </div>
     <!-- Slider indicators -->
@@ -10,10 +10,10 @@
         <button 
         type="button" 
         class="w-8 h-2  bg-gray-300" 
-        *ngFor="let button of slideImages; let index"
-        (click)="selectSlide(index)"
+        *ngFor="let button of slideImages; let i = index"
+        (click)="selectSlide(i)"
         aria-current="true" 
-        aria-label="'Slide'+index">
+        aria-label="'Slide'+i">
         </button>
     </div>
     <!-- Slider controls -->

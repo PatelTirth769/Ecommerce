@@ -7,18 +7,12 @@
         <span class="badge">Not Saved</span>
       </div>
       <div class="header-right">
-        <button type="button" class="btn-ghost">Create User Email</button>
-        <button type="button" class="btn-ghost">Impersonate</button>
-        <button type="button" class="btn-ghost">...</button>
         <button type="submit" (click)="onSubmit()" [disabled]="isLoading" class="btn-save">Save</button>
       </div>
     </div>
 
     <div class="register-tabs">
       <div class="tab-item active">User Details</div>
-      <div class="tab-item">Roles & Permissions</div>
-      <div class="tab-item">More Information</div>
-      <div class="tab-item">Settings</div>
     </div>
 
     <div class="register-form-body">
@@ -71,10 +65,7 @@
                 <label>Language</label>
                 <input type="text" formControlName="language">
               </div>
-              <div class="erp-form-group">
-                <label>Time Zone</label>
-                <input type="text" formControlName="time_zone">
-              </div>
+
               <div class="erp-check-group">
                 <input type="checkbox" formControlName="send_welcome_email" id="welcome">
                 <label for="welcome">Send Welcome Email</label>
@@ -100,10 +91,7 @@
             </div>
           </div>
 
-          <div class="erp-check-group mt-6">
-            <input type="checkbox" formControlName="terms" id="terms">
-            <label for="terms">I agree with the <a href="#">Terms and Conditions</a> *</label>
-          </div>
+
         </form>
       </div>
     </div>
@@ -113,7 +101,8 @@
     </div>
 
     <div class="footer-login">
-      Already a member? <a [routerLink]="['/login']">Sign In</a>
+      Already a member? <a [routerLink]="['/login']">Sign In</a> | 
+      <a [routerLink]="['/register-seller']" class="seller-link">Register as a Seller</a>
     </div>
   </div>
 </div>

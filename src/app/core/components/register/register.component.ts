@@ -31,11 +31,9 @@ export class RegisterComponent implements OnInit {
       middle_name: [''],
       last_name: ['', Validators.required],
       language: ['English'],
-      time_zone: ['Asia/Kolkata'],
       send_welcome_email: [true],
       password: ['', [Validators.required, Validators.minLength(6)]],
-      confirmPassword: ['', Validators.required],
-      terms: [false, Validators.requiredTrue]
+      confirmPassword: ['', Validators.required]
     }, { validators: this.passwordMatchValidator });
   }
 
@@ -64,8 +62,7 @@ export class RegisterComponent implements OnInit {
         email: 'Email',
         mobile: 'Mobile Number',
         password: 'Password',
-        confirmPassword: 'Confirm Password',
-        terms: 'Terms and Conditions'
+        confirmPassword: 'Confirm Password'
       };
 
       const missingFields = invalidControls

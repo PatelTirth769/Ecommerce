@@ -115,7 +115,7 @@ export class WebsiteItemService {
 
   // REPLACE THESE WITH YOUR ACTUAL ADMIN KEYS FROM ERPNEXT
   private readonly API_KEY = '764ae0b7b89ab0f';
-  private readonly API_SECRET = '944d939f51e9336';
+  private readonly API_SECRET = 'c69b450d20ffcf2';
 
   constructor(private http: HttpClient) {}
 

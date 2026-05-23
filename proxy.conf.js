@@ -1,4 +1,4 @@
-const ADMIN_TOKEN = 'token 764ae0b7b89ab0f:944d939f51e9336';
+const ADMIN_TOKEN = 'token 764ae0b7b89ab0f:c69b450d20ffcf2';
 
 // Paths that should use Admin API key instead of user session cookie
 const PUBLIC_RESOURCE_PATTERNS = [

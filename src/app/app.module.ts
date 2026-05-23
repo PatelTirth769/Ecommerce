@@ -25,6 +25,7 @@ import { environment } from '../environments/environment';
 import { AngularFireModule } from '@angular/fire/compat';
 import { AngularFireAuthModule } from '@angular/fire/compat/auth';
 import { AngularFirestoreModule } from '@angular/fire/compat/firestore';
+import { WishlistComponent } from './core/components/wishlist/wishlist.component';
 
 @NgModule({
   declarations: [
@@ -43,7 +44,8 @@ import { AngularFirestoreModule } from '@angular/fire/compat/firestore';
     ProductMasterComponent,
     SellerScreenComponent,
     SellerRegistrationComponent,
-    BuyerProfileComponent
+    BuyerProfileComponent,
+    WishlistComponent
   ],
   imports: [
     BrowserModule,

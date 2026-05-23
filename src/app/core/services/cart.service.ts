@@ -119,7 +119,7 @@ export class CartService {
     this.buildApiUrl('api/method/webshop.shopping_cart.cart.update_cart'),
     this.buildApiUrl('api/method/webshop.webshop.shopping_cart.cart.update_cart')
   ];
-  private readonly ADMIN_TOKEN = 'token 764ae0b7b89ab0f:944d939f51e9336';
+  private readonly ADMIN_TOKEN = 'token 764ae0b7b89ab0f:c69b450d20ffcf2';
   private manualCouponRule: PricingRuleRecord | null = null;
 
   private cart: Product[] = [];
@@ -797,7 +797,8 @@ export class CartService {
 
   private syncCart(products: Product[]): void {
     this.cart.splice(0, this.cart.length, ...products);
-    this.products.next(this.cart);
+    console.log('[Cart] syncCart → emitting', this.cart.length, 'items:', this.cart.map(p => p.item_code || p.title));
+    this.products.next([...this.cart]);
   }
 
   private normalizeQuotationItems(items: Product[]): QuotationItemRecord[] {
@@ -926,13 +927,28 @@ export class CartService {
     return this.postWithFallback(this.updateCartEndpoints, formData as any)
       .pipe(
         map((response) => {
+          console.log('[Cart] updateCartMethodApi raw response:', response);
           const quotation = this.extractQuotationFromMethodResponse(response);
           const items = Array.isArray(quotation.items) ? quotation.items : [];
           const mappedItems = items.map((item, index) => this.mapQuotationItemToProduct(item, index));
-          this.updateTotalsFromQuotation(quotation, mappedItems);
+          
+          if (mappedItems.length > 0 || Object.keys(quotation).length > 2) {
+            this.updateTotalsFromQuotation(quotation, mappedItems);
+          }
           return mappedItems;
         }),
-        tap(products => this.syncCart(products)),
+        tap(products => {
+          if (products.length > 0) {
+            console.log('[Cart] updateCartMethodApi success, syncing', products.length, 'items');
+            this.syncCart(products);
+          } else if (qty === 0) {
+            // If we intended to remove (qty=0), then empty is fine
+            console.log('[Cart] updateCartMethodApi success (remove), syncing empty cart');
+            this.syncCart([]);
+          } else {
+            console.warn('[Cart] updateCartMethodApi returned 0 items but qty was', qty, '. Keeping local state.');
+          }
+        }),
         catchError(error => {
           console.error('ERPNext Method Cart Update Failed:', error);
           // Fallback to REST persistence if RPC fails
@@ -962,11 +978,25 @@ export class CartService {
         ['Quotation', 'owner', '=', userEmail]
       ]);
     } else if (userEmail === 'Administrator') {
-      // FOR ADMINISTRATOR: Can see the latest overall cart for debugging
+      // FOR ADMINISTRATOR: Prioritize their own cart first, then latest overall
+      // Strategy 1: Owned by Administrator
+      filterSets.push([
+        ['Quotation', 'docstatus', '=', 0],
+        ['Quotation', 'order_type', '=', 'Shopping Cart'],
+        ['Quotation', 'owner', '=', 'Administrator']
+      ]);
+      // Strategy 2: Contact email is Administrator
+      filterSets.push([
+        ['Quotation', 'docstatus', '=', 0],
+        ['Quotation', 'order_type', '=', 'Shopping Cart'],
+        ['Quotation', 'contact_email', '=', 'Administrator']
+      ]);
+      // Strategy 3: Just the absolute latest Shopping Cart
       filterSets.push([
         ['Quotation', 'docstatus', '=', 0],
         ['Quotation', 'order_type', '=', 'Shopping Cart']
       ]);
+      // Strategy 4: Any draft quotation
       filterSets.push([
         ['Quotation', 'docstatus', '=', 0]
       ]);
@@ -1041,17 +1071,25 @@ export class CartService {
 
   private extractQuotationFromMethodResponse(response: ERPMethodResponse<unknown>): QuotationRecord {
     const message = response?.message;
-    if (!message || typeof message !== 'object') {
+    if (!message) {
+      console.warn('[Cart] extractQuotation: response.message is empty');
+      return {};
+    }
+
+    if (typeof message !== 'object') {
+      console.log('[Cart] extractQuotation: response.message is not an object:', message);
       return {};
     }
 
     if ('quotation' in (message as Record<string, unknown>)) {
       const quotation = (message as Record<string, unknown>)['quotation'];
       if (quotation && typeof quotation === 'object') {
+        console.log('[Cart] extractQuotation: Found quotation object inside message');
         return quotation as QuotationRecord;
       }
     }
 
+    console.log('[Cart] extractQuotation: Returning message object directly as Quotation');
     return message as QuotationRecord;
   }
 
@@ -1246,6 +1284,7 @@ export class CartService {
     const key = this.getCartKey(product);
     const index = this.cart.findIndex((item) => this.getCartKey(item) === key);
     const itemCode = product.item_code || product.type || product.title || '';
+    console.log('[Cart] add() called for:', itemCode, 'key:', key, 'existingIndex:', index);
     
     // Optimistic local update
     if (index >= 0) {
@@ -1256,7 +1295,8 @@ export class CartService {
       this.cart.push(nextProduct);
     }
     
-    this.products.next(this.cart);
+    console.log('[Cart] add() → emitting new array with', this.cart.length, 'items');
+    this.products.next([...this.cart]);
     this.getTotal();
 
     const newQty = index >= 0 ? this.cart[index].qty : 1;
@@ -1267,11 +1307,13 @@ export class CartService {
     const key = this.getCartKey(product);
     const index = this.cart.findIndex((item) => this.getCartKey(item) === key);
     const itemCode = product.item_code || product.type || product.title || '';
+    console.log('[Cart] remove() called for:', itemCode, 'key:', key, 'existingIndex:', index);
     
     // Optimistic local update
     if (index >= 0) {
       this.cart.splice(index, 1);
-      this.products.next(this.cart);
+      console.log('[Cart] remove() → emitting new array with', this.cart.length, 'items');
+      this.products.next([...this.cart]);
       this.getTotal();
     }
 

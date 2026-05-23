@@ -1,9 +1,9 @@
-import { Component,OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { ProductService } from '../../../services/product.service';
 import { Product } from '../../../model';
 import { CartService } from 'src/app/core/services/cart.service';
-import { catchError, forkJoin, map, of, switchMap } from 'rxjs';
+import { Subscription, catchError, forkJoin, map, of, switchMap } from 'rxjs';
 import { ItemRecord, WebsiteItem, WebsiteItemService } from 'src/app/core/services/website-item.service';
 
 interface DetailRow {
@@ -31,7 +31,7 @@ interface ReviewRow {
   styles: [
   ]
 })
-export class ProductdetailComponent implements OnInit{
+export class ProductdetailComponent implements OnInit, OnDestroy{
   isLoading=false;
   isErpDetail=false;
   selectedSize!:string;
@@ -66,6 +66,7 @@ export class ProductdetailComponent implements OnInit{
   erpRatingCounts = [0, 0, 0, 0, 0];
   erpStars = [1, 2, 3, 4, 5];
   private fallbackImage = 'assets/images/logo.png';
+  private cartSub!: Subscription;
 
   constructor(
     private route:ActivatedRoute,
@@ -76,12 +77,18 @@ export class ProductdetailComponent implements OnInit{
   ){}
 
   ngOnInit(): void {
+    this.cartSub = this.cartService.cart$.subscribe(cartItems => {
+      this.cart = cartItems;
+    });
     this.loadProduct(this.route.snapshot.params['id']);
-    this.cart=this.cartService.getCart;
     this.route.params.subscribe(()=>{
       this.loadProduct(this.route.snapshot.params['id']);
       this.scrollToTop();
     })
+  }
+
+  ngOnDestroy(): void {
+    this.cartSub?.unsubscribe();
   }
 
   loadProduct(identifier: string){
@@ -648,11 +655,9 @@ export class ProductdetailComponent implements OnInit{
   }
   addToCart(product:Product){
     this.cartService.add(product);
-    this.cart = this.cartService.getCart;
   }
   removeFromCart(product:Product){
     this.cartService.remove(product);
-    this.cart = this.cartService.getCart;
   }
   isProductInCart(product:Product){
     return this.cart.some(item => this.getCartKey(item) === this.getCartKey(product));

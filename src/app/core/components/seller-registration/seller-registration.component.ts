@@ -8,6 +8,8 @@ import { environment } from 'src/environments/environment';
 import { Router } from '@angular/router';
 import { ToastService } from '../../services/toast.service';
 
+import { FirebaseAuthService } from '../../services/firebase-auth.service';
+
 @Component({
   selector: 'app-seller-registration',
   templateUrl: './seller-registration.component.html',
@@ -33,17 +35,13 @@ export class SellerRegistrationComponent implements OnInit {
   activeTab = 'details';
 
   tabs = [
-    { id: 'details', label: 'Details' },
-    { id: 'tax', label: 'Tax' },
-    { id: 'address', label: 'Address & Contact' },
-    { id: 'accounting', label: 'Accounting' },
-    { id: 'settings', label: 'Settings' },
-    { id: 'portal', label: 'Portal Users' }
+    { id: 'details', label: 'User Details' }
   ];
 
   constructor(
     private readonly fb: FormBuilder,
     private readonly sellerService: SellerRegistrationService,
+    private readonly authService: FirebaseAuthService,
     private readonly router: Router,
     private readonly toastService: ToastService,
     private readonly http: HttpClient
@@ -51,40 +49,18 @@ export class SellerRegistrationComponent implements OnInit {
 
   ngOnInit(): void {
     this.sellerForm = this.fb.group({
-      supplier_name: ['', Validators.required],
-      supplier_group: [''],
-      country: ['India'],
-      supplier_type: ['Company', Validators.required],
-      is_transporter: [false],
-      default_currency: [''],
-      default_price_list: [''],
-      default_bank_account: [''],
-      is_internal_supplier: [false],
-      represents_company: [''],
-      supplier_details: [''],
-      website: [''],
+      email: ['', [Validators.required, Validators.email]],
+      mobile: ['', Validators.required],
+      username: [''],
+      first_name: ['', Validators.required],
+      middle_name: [''],
+      last_name: ['', Validators.required],
       language: ['en'],
-      // Tax
-      tax_id: [''],
-      tax_category: [''],
-      tax_withholding_category: [''],
-      // Address & Contact
-      supplier_primary_address: [''],
-      supplier_primary_contact: [''],
-      // Accounting
-      default_payment_terms_template: [''],
-      accounts: this.fb.array([]),
-      // Settings
-      allow_purchase_invoice_creation_without_purchase_order: [false],
-      allow_purchase_invoice_creation_without_purchase_receipt: [false],
-      is_frozen: [false],
-      disabled: [false],
-      block_supplier: [false],
-      hold_type: [''],
-      release_date: [''],
-      // Portal Users
-      portal_users: this.fb.array([])
-    });
+      send_welcome_email: [true],
+      password: ['', [Validators.required, Validators.minLength(6)]],
+      confirmPassword: ['', Validators.required],
+      supplier_name: [''] // Optional, will fallback to full name
+    }, { validator: this.passwordMatchValidator });
 
     this.sellerForm.get('is_internal_supplier')?.valueChanges.subscribe(checked => {
       const representsControl = this.sellerForm.get('represents_company');
@@ -96,7 +72,12 @@ export class SellerRegistrationComponent implements OnInit {
       representsControl?.updateValueAndValidity();
     });
 
-    this.fetchAllDropdownData();
+    // this.fetchAllDropdownData(); // Not needed for simplified view
+  }
+
+  passwordMatchValidator(g: FormGroup) {
+    return g.get('password')?.value === g.get('confirmPassword')?.value
+      ? null : { 'mismatch': true };
   }
 
   fetchAllDropdownData(): void {
@@ -187,55 +168,41 @@ export class SellerRegistrationComponent implements OnInit {
 
     const payload = this.sellerForm.getRawValue();
     
-    // convert boolean to 1/0 for ERPNext
-    payload.is_transporter = payload.is_transporter ? 1 : 0;
-    payload.is_internal_supplier = payload.is_internal_supplier ? 1 : 0;
-    payload.allow_purchase_invoice_creation_without_purchase_order = payload.allow_purchase_invoice_creation_without_purchase_order ? 1 : 0;
-    payload.allow_purchase_invoice_creation_without_purchase_receipt = payload.allow_purchase_invoice_creation_without_purchase_receipt ? 1 : 0;
-    payload.is_frozen = payload.is_frozen ? 1 : 0;
-    payload.disabled = payload.disabled ? 1 : 0;
-    payload.block_supplier = payload.block_supplier ? 1 : 0;
-
     this.loading = true;
 
-    this.sellerService.createSupplier(payload)
-      .pipe(finalize(() => this.loading = false))
-      .subscribe({
-        next: (res) => {
-          this.toastService.showSuccess('Supplier registered successfully!');
-          this.successMessage = 'Supplier registration successful!';
-          this.sellerForm.reset({
-            country: 'India',
-            supplier_type: 'Company',
-            is_transporter: false,
-            is_internal_supplier: false,
-            language: 'en'
-          });
-          setTimeout(() => {
-            this.router.navigate(['/']);
-          }, 3000);
-        },
-        error: (err) => {
-          console.error('[SellerReg] Error creating supplier:', err);
-          
-          let serverMessage = '';
-          if (err.error?._server_messages) {
-            try {
-              const messages = JSON.parse(err.error._server_messages);
-              serverMessage = messages.map((m: string) => {
-                const parsed = JSON.parse(m);
-                return parsed.message;
-              }).join(' | ');
-            } catch (e) {
-              serverMessage = err.error._server_messages;
-            }
-          } else if (err.error?.exception) {
-            serverMessage = err.error.exception;
+    this.authService.registerSeller(payload)
+      .then((res) => {
+        this.toastService.showSuccess('Seller registered successfully!');
+        this.successMessage = 'Seller registration successful!';
+        this.sellerForm.reset({
+          language: 'en',
+          send_welcome_email: true
+        });
+        setTimeout(() => {
+          this.router.navigate(['/login']);
+        }, 3000);
+      })
+      .catch((err) => {
+        console.error('[SellerReg] Error creating seller:', err);
+        
+        let serverMessage = '';
+        if (err.error?._server_messages) {
+          try {
+            const messages = JSON.parse(err.error._server_messages);
+            serverMessage = messages.map((m: string) => {
+              const parsed = JSON.parse(m);
+              return parsed.message;
+            }).join(' | ');
+          } catch (e) {
+            serverMessage = err.error._server_messages;
           }
-
-          this.errorMessage = serverMessage || err.error?.message || err.message || 'Failed to register supplier.';
-          this.toastService.showError(this.errorMessage);
+        } else if (err.error?.exception) {
+          serverMessage = err.error.exception;
         }
-      });
+
+        this.errorMessage = serverMessage || err.error?.message || err.message || 'Failed to register seller.';
+        this.toastService.showError(this.errorMessage);
+      })
+      .finally(() => this.loading = false);
   }
 }

@@ -1,369 +1,109 @@
-<section class="seller-form-page">
-  <div class="top-head">
-    <a routerLink="/" class="logo-link">
-      <img src="assets/images/logo.png" alt="Sale24x7" />
-    </a>
-    <h1>New Supplier</h1>
-  </div>
+<div class="register-page">
+  <div class="register-container">
+    <div class="register-header">
+      <div class="header-left">
+        <span class="icon">☰</span>
+        <h2>New Seller</h2>
+        <span class="badge">Not Saved</span>
+      </div>
+      <div class="header-right">
+        <button type="submit" (click)="onSubmit()" [disabled]="loading" class="btn-save">Save</button>
+      </div>
+    </div>
 
-  <div *ngIf="loading" class="loading-overlay">
-    <div class="loader">Loading...</div>
-  </div>
+    <div class="register-tabs">
+      <div class="tab-item active">User Details</div>
+    </div>
 
-  <div *ngIf="successMessage" class="alert alert-success">
-    <span class="alert-icon">&#10003;</span>
-    <span>{{ successMessage }}</span>
-  </div>
+    <div class="register-form-body">
+      <div class="enabled-toggle">
+        <input type="checkbox" checked disabled id="enabled">
+        <label for="enabled">Enabled</label>
+      </div>
 
-  <div *ngIf="errorMessage" class="alert alert-error">
-    <span class="alert-icon">&#10007;</span>
-    <span>{{ errorMessage }}</span>
-  </div>
+      <div class="section-card">
+        <h3>Seller Account Info</h3>
+        
+        <form [formGroup]="sellerForm">
+          <div class="erp-grid">
+            <!-- Column 1 -->
+            <div class="erp-col">
+              <div class="erp-form-group">
+                <label>Email *</label>
+                <input type="email" formControlName="email">
+                <span class="error-hint" *ngIf="sellerForm.get('email')?.invalid && sellerForm.get('email')?.touched">Invalid email</span>
+              </div>
+              <div class="erp-form-group">
+                <label>Mobile Number *</label>
+                <input type="tel" formControlName="mobile">
+              </div>
+              <div class="erp-form-group">
+                <label>First Name *</label>
+                <input type="text" formControlName="first_name">
+              </div>
+              <div class="erp-form-group">
+                <label>Middle Name</label>
+                <input type="text" formControlName="middle_name">
+              </div>
+              <div class="erp-form-group">
+                <label>Last Name *</label>
+                <input type="text" formControlName="last_name">
+              </div>
+            </div>
 
-  <form [formGroup]="sellerForm" (ngSubmit)="onSubmit()" novalidate>
+            <!-- Column 2 -->
+            <div class="erp-col">
+              <div class="erp-form-group">
+                <label>Username</label>
+                <input type="text" formControlName="username">
+              </div>
+              <div class="erp-form-group">
+                <label>Supplier/Business Name (Optional)</label>
+                <input type="text" formControlName="supplier_name" placeholder="Leave blank to use full name">
+              </div>
+            </div>
 
-    <nav class="tab-nav">
-      <button type="button" *ngFor="let tab of tabs" 
-              [class.active]="activeTab === tab.id" 
-              (click)="setActiveTab(tab.id)" 
-              class="tab-btn">
-        {{ tab.label }}
-      </button>
-    </nav>
+            <!-- Column 3 -->
+            <div class="erp-col">
+              <div class="erp-form-group">
+                <label>Language</label>
+                <input type="text" formControlName="language">
+              </div>
 
-    <div class="tab-content">
-      <!-- Details Tab -->
-      <div *ngIf="activeTab === 'details'">
-        <!-- Details -->
-        <div class="card">
-          <h2>Details</h2>
-
-          <div class="grid two">
-            <label>
-              Supplier Name *
-              <input type="text" formControlName="supplier_name" placeholder="Supplier Name" />
-              <span class="error-hint" *ngIf="cf['supplier_name'].invalid && cf['supplier_name'].touched">Required field</span>
-            </label>
-
-            <label>
-              Supplier Group
-              <app-searchable-select
-                formControlName="supplier_group"
-                [options]="supplierGroups"
-                placeholder="Select Supplier Group"
-                doctypeName="Supplier Group">
-              </app-searchable-select>
-            </label>
-          </div>
-
-          <div class="grid two">
-            <label>
-              Country
-              <app-searchable-select
-                formControlName="country"
-                [options]="countries"
-                placeholder="Select Country"
-                doctypeName="Country">
-              </app-searchable-select>
-            </label>
-
-            <label>
-              Supplier Type *
-              <select formControlName="supplier_type">
-                <option value="Company">Company</option>
-                <option value="Individual">Individual</option>
-                <option value="Partnership">Partnership</option>
-                <option value="Proprietorship">Proprietorship</option>
-                <option value="HUF">HUF</option>
-                <option value="LLP">LLP</option>
-              </select>
-              <span class="error-hint" *ngIf="cf['supplier_type'].invalid && cf['supplier_type'].touched">Required field</span>
-            </label>
-          </div>
-
-          <label class="gst-toggle">
-            <input type="checkbox" formControlName="is_transporter" />
-            <span>Is Transporter</span>
-          </label>
-        </div>
-
-        <!-- Defaults -->
-        <div class="card">
-          <h2>Defaults</h2>
-
-          <div class="grid two">
-            <label>
-              Billing Currency
-              <app-searchable-select
-                formControlName="default_currency"
-                [options]="currencies"
-                placeholder="Select Currency">
-              </app-searchable-select>
-            </label>
-
-            <label>
-              Price List
-              <app-searchable-select
-                formControlName="default_price_list"
-                [options]="priceLists"
-                placeholder="Select Price List">
-              </app-searchable-select>
-            </label>
-          </div>
-
-          <div class="grid two">
-            <label>
-              Default Company Bank Account
-              <app-searchable-select
-                formControlName="default_bank_account"
-                [options]="bankAccounts"
-                placeholder="Select Bank Account">
-              </app-searchable-select>
-            </label>
-          </div>
-        </div>
-
-        <!-- Internal Supplier -->
-        <div class="card">
-          <h2>Internal Supplier</h2>
-
-          <label class="gst-toggle">
-            <input type="checkbox" formControlName="is_internal_supplier" />
-            <span>Is Internal Supplier</span>
-          </label>
-
-          <div class="grid two" *ngIf="sellerForm.get('is_internal_supplier')?.value">
-            <label>
-              Represents Company *
-              <app-searchable-select
-                formControlName="represents_company"
-                [options]="companies"
-                placeholder="Select Company"
-                doctypeName="Company">
-              </app-searchable-select>
-              <span class="error-hint" *ngIf="cf['represents_company'].invalid && cf['represents_company'].touched">Required field</span>
-            </label>
-          </div>
-        </div>
-
-        <!-- More Information -->
-        <div class="card">
-          <h2>More Information</h2>
-
-          <div class="grid two" style="align-items: flex-start;">
-            <label>
-              Supplier Details
-              <textarea rows="4" formControlName="supplier_details" placeholder="Statutory info and other general information"></textarea>
-            </label>
-
-            <div style="display: flex; flex-direction: column; gap: 1rem; width: 100%;">
-              <label>
-                Website
-                <input type="text" formControlName="website" placeholder="https://..." />
-              </label>
-
-              <label>
-                Print Language
-                <select formControlName="language">
-                  <option *ngFor="let lang of languages" [value]="lang.name">
-                    {{ lang.language_name ? (lang.language_name + ' (' + lang.name + ')') : lang.name }}
-                  </option>
-                </select>
-              </label>
+              <div class="erp-check-group">
+                <input type="checkbox" formControlName="send_welcome_email" id="welcome">
+                <label for="welcome">Send Welcome Email</label>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <!-- Tax Tab -->
-      <div *ngIf="activeTab === 'tax'">
-        <div class="card">
-          <div class="grid two">
-            <label>Tax ID <input type="text" formControlName="tax_id" /></label>
-            <label>
-              Tax Category 
-              <app-searchable-select
-                formControlName="tax_category"
-                [options]="taxCategories"
-                placeholder="Select Tax Category"
-                doctypeName="Tax Category">
-              </app-searchable-select>
-            </label>
-          </div>
-          <div class="grid two">
-            <label>
-              Tax Withholding Category 
-              <app-searchable-select
-                formControlName="tax_withholding_category"
-                [options]="taxWithholdingCategories"
-                placeholder="Select Tax Withholding Category">
-              </app-searchable-select>
-            </label>
-          </div>
-        </div>
-      </div>
+          <div class="section-divider"></div>
 
-      <!-- Address Tab -->
-      <div *ngIf="activeTab === 'address'">
-        <div class="card">
-          <h2>Primary Address and Contact</h2>
-          <div class="grid two">
-            <label>Supplier Primary Address <input type="text" formControlName="supplier_primary_address" /></label>
-            <label>Supplier Primary Contact <input type="text" formControlName="supplier_primary_contact" /></label>
+          <div class="erp-grid">
+            <div class="erp-col">
+              <div class="erp-form-group">
+                <label>Password *</label>
+                <input type="password" formControlName="password">
+              </div>
+            </div>
+            <div class="erp-col">
+              <div class="erp-form-group">
+                <label>Confirm Password *</label>
+                <input type="password" formControlName="confirmPassword">
+                <p *ngIf="sellerForm.hasError('mismatch') && sellerForm.get('confirmPassword')?.touched" class="error-hint">Passwords do not match</p>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-
-      <!-- Accounting Tab -->
-      <div *ngIf="activeTab === 'accounting'">
-        <div class="card">
-          <label>
-            Default Payment Terms Template 
-            <app-searchable-select
-              formControlName="default_payment_terms_template"
-              [options]="paymentTermsTemplates"
-              placeholder="Select Payment Terms Template">
-            </app-searchable-select>
-          </label>
-          
-          <div class="table-section-head">
-            <h2 style="margin-top: 1.5rem;">Default Accounts</h2>
-            <p class="section-sub-hint">Mention if non-standard payable account</p>
-          </div>
-          <div class="table-responsive">
-            <table class="child-table">
-              <thead>
-                <tr>
-                  <th style="width: 30px;"><input type="checkbox" disabled /></th>
-                  <th style="width: 50px;">No.</th>
-                  <th>Company *</th>
-                  <th>Default Account</th>
-                  <th style="width: 40px;"><span class="icon">⚙️</span></th>
-                  <th style="width: 40px;"></th>
-                </tr>
-              </thead>
-              <tbody formArrayName="accounts">
-                <tr *ngFor="let account of accounts.controls; let i=index" [formGroupName]="i">
-                  <td><input type="checkbox" /></td>
-                  <td>{{ i + 1 }}</td>
-                  <td>
-                    <app-searchable-select
-                      formControlName="company"
-                      [options]="companies"
-                      placeholder="Select Company"
-                      doctypeName="Company">
-                    </app-searchable-select>
-                  </td>
-                  <td>
-                    <app-searchable-select
-                      formControlName="default_account"
-                      [options]="allAccounts"
-                      placeholder="Select Account"
-                      infoText="Filters applied for Account Type = Payable, Root Type = Liability, Company = sale24x7, Is Group = No"
-                      doctypeName="Account">
-                    </app-searchable-select>
-                  </td>
-                  <td class="cell-action"><span class="icon">✏️</span></td>
-                  <td><button type="button" class="btn-remove" (click)="removeAccountRow(i)">&times;</button></td>
-                </tr>
-                <tr *ngIf="accounts.length === 0">
-                  <td colspan="6" class="no-data">No Data</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <button type="button" class="add-row-btn" (click)="addAccountRow()">Add Row</button>
-        </div>
-      </div>
-
-      <!-- Settings Tab -->
-      <div *ngIf="activeTab === 'settings'">
-        <div class="card">
-          <div class="grid two">
-            <label class="gst-toggle">
-              <input type="checkbox" formControlName="allow_purchase_invoice_creation_without_purchase_order" />
-              <span>Allow Purchase Invoice Creation Without Purchase Order</span>
-            </label>
-            <label class="gst-toggle">
-              <input type="checkbox" formControlName="is_frozen" />
-              <span>Is Frozen</span>
-            </label>
-          </div>
-          <div class="grid two">
-            <label class="gst-toggle">
-              <input type="checkbox" formControlName="allow_purchase_invoice_creation_without_purchase_receipt" />
-              <span>Allow Purchase Invoice Creation Without Purchase Receipt</span>
-            </label>
-            <label class="gst-toggle">
-              <input type="checkbox" formControlName="disabled" />
-              <span>Disabled</span>
-            </label>
-          </div>
-
-          <h2 style="margin-top: 1.5rem;">Block Supplier</h2>
-          <label class="gst-toggle">
-            <input type="checkbox" formControlName="block_supplier" />
-            <span>Block Supplier</span>
-          </label>
-          
-          <div class="grid two" *ngIf="sellerForm.get('block_supplier')?.value">
-            <label>
-              Hold Type 
-              <app-searchable-select
-                formControlName="hold_type"
-                [options]="[{name:'All'}, {name:'Invoices'}, {name:'Payments'}]"
-                placeholder="Select Hold Type">
-              </app-searchable-select>
-            </label>
-            <label>Release Date <input type="date" formControlName="release_date" /></label>
-          </div>
-        </div>
-      </div>
-
-      <!-- Portal Users Tab -->
-      <div *ngIf="activeTab === 'portal'">
-          <h2 style="margin-top: 1.5rem;">Supplier Portal Users</h2>
-          <div class="table-responsive">
-            <table class="child-table">
-              <thead>
-                <tr>
-                  <th style="width: 30px;"><input type="checkbox" disabled /></th>
-                  <th style="width: 50px;">No.</th>
-                  <th>User *</th>
-                  <th style="width: 40px;"><span class="icon">⚙️</span></th>
-                  <th style="width: 40px;"></th>
-                </tr>
-              </thead>
-              <tbody formArrayName="portal_users">
-                <tr *ngFor="let user of portalUsers.controls; let i=index" [formGroupName]="i">
-                  <td><input type="checkbox" /></td>
-                  <td>{{ i + 1 }}</td>
-                  <td>
-                    <app-searchable-select
-                      formControlName="user"
-                      [options]="users"
-                      [displayField]="'full_name'"
-                      placeholder="Select User"
-                      doctypeName="User">
-                    </app-searchable-select>
-                  </td>
-                  <td class="cell-action"><span class="icon">✏️</span></td>
-                  <td><button type="button" class="btn-remove" (click)="removePortalUserRow(i)">&times;</button></td>
-                </tr>
-                <tr *ngIf="portalUsers.length === 0">
-                  <td colspan="5" class="no-data">No Data</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <button type="button" class="add-row-btn" (click)="addPortalUserRow()">Add Row</button>
+        </form>
       </div>
     </div>
 
-    <div class="submit-wrap">
-      <button type="submit" class="btn submit" [disabled]="loading">
-        {{ loading ? 'Saving...' : 'Save' }}
-      </button>
+    <div *ngIf="errorMessage" class="error-alert">
+      {{ errorMessage }}
     </div>
-  </form>
-</section>
+
+    <div class="footer-login">
+      Already have a seller account? <a [routerLink]="['/login']">Sign In</a>
+    </div>
+  </div>
+</div>

@@ -12,7 +12,7 @@
 
     <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="space-y-6">
         <div>
-            <label for="email" class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Email or Username</label>
+            <label for="email" class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Email, Username or Mobile Number</label>
             <div class="relative">
                 <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
                     <i class="fas fa-user text-xs"></i>
@@ -22,7 +22,7 @@
                     id="email" 
                     formControlName="email"
                     class="block w-full pl-10 pr-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500" 
-                    placeholder="administrator or email@domain.com" required>
+                    placeholder="administrator, email or mobile number" required>
             </div>
         </div>
 
@@ -53,7 +53,8 @@
 
         <p class="text-center text-sm text-gray-600 dark:text-gray-400 mt-6">
             Not a member? 
-            <a [routerLink]="['/register']" class="font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 hover:underline transition-all">Create Account</a>
+            <a [routerLink]="['/register']" class="font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 hover:underline transition-all">Create Account</a> | 
+            <a [routerLink]="['/register-seller']" class="font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 hover:underline transition-all ml-1">Register as Seller</a>
         </p>
     </form>
 </div>

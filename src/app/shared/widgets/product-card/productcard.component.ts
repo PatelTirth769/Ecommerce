@@ -1,6 +1,7 @@
 import { Component, Input, OnInit, OnDestroy } from '@angular/core';
 import { Product } from '../../../model';
-import { CartService } from 'src/app/core/services/cart.service';
+import { CartService } from '../../../core/services/cart.service';
+import { WishlistService, WishlistItem } from '../../../core/services/wishlist.service';
 import { ProductService } from '../../../services/product.service';
 import { Router,NavigationEnd } from '@angular/router';
 import { ViewportScroller } from '@angular/common';
@@ -16,13 +17,18 @@ export class ProductcardComponent implements OnInit, OnDestroy {
   @Input() product!:Product;
   ratingList!:boolean[];
   cart:Product[]=[];
+  wishlist: WishlistItem[] = [];
   discount=0;
   private cartSub!: Subscription;
-  constructor(private cartService:CartService, private productService:ProductService){}
+  private wishlistSub!: Subscription;
+  constructor(private cartService:CartService, private productService:ProductService, private wishlistService: WishlistService){}
 
   ngOnInit(): void {
     this.cartSub = this.cartService.cart$.subscribe(cartItems => {
       this.cart = cartItems;
+    });
+    this.wishlistSub = this.wishlistService.wishlist$.subscribe((items: WishlistItem[]) => {
+      this.wishlist = items;
     });
     this.discount=this.product&&Math.round(100-(this.product.price/this.product.prevprice)*100);
     this.getRatingStar();
@@ -30,6 +36,7 @@ export class ProductcardComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.cartSub?.unsubscribe();
+    this.wishlistSub?.unsubscribe();
   }
 
   addToCart(product:Product){
@@ -42,6 +49,15 @@ export class ProductcardComponent implements OnInit, OnDestroy {
 
   isProductInCart(product:Product){
     return this.cart.some(item => this.getCartKey(item) === this.getCartKey(product));
+  }
+
+  isProductInWishlist(product: Product): boolean {
+    const itemCode = product.item_code || product.type || '';
+    return this.wishlist.some(i => i.item_code === itemCode);
+  }
+
+  toggleWishlist(product: Product): void {
+    this.wishlistService.toggleWishlist(product).subscribe();
   }
 
   private getCartKey(product: Product): string {

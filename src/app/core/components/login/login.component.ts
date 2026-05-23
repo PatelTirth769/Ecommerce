@@ -31,7 +31,7 @@ export class LoginComponent implements OnDestroy {
 
   async onSubmit(): Promise<void> {
     if (this.loginForm.invalid) {
-      this.errorMessage = 'Please enter a valid username/email and password (min. 6 characters)';
+      this.errorMessage = 'Please enter a valid username, email, or mobile number and password (min. 6 characters)';
       return;
     }
 

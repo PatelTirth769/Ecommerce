@@ -12,20 +12,12 @@
           </span>
         </div>
         <div class="flex items-center gap-2">
-          <button class="bg-[#f3f4f6] border border-gray-300 text-gray-700 px-3 py-1.5 rounded-md text-sm font-semibold hover:bg-gray-100 transition-all">Permissions</button>
-          <button class="bg-[#f3f4f6] border border-gray-300 text-gray-700 px-3 py-1.5 rounded-md text-sm font-semibold hover:bg-gray-100 transition-all">Password</button>
-          <button class="bg-[#f3f4f6] border border-gray-300 text-gray-700 px-3 py-1.5 rounded-md text-sm font-semibold hover:bg-gray-100 transition-all">Create User Email</button>
-          <button class="bg-gray-900 text-white px-4 py-1.5 rounded-md text-sm font-semibold hover:bg-black transition-all ml-4">Save</button>
         </div>
       </div>
 
       <!-- ERPNext Style Tabs -->
       <div class="flex gap-8 px-6 border-b border-gray-200 overflow-x-auto">
         <div class="tab-item active border-b-2 border-gray-900 py-3 text-sm font-semibold text-gray-900 cursor-pointer">User Details</div>
-        <div class="tab-item py-3 text-sm font-semibold text-gray-500 cursor-pointer hover:text-gray-900">Roles & Permissions</div>
-        <div class="tab-item py-3 text-sm font-semibold text-gray-500 cursor-pointer hover:text-gray-900">More Information</div>
-        <div class="tab-item py-3 text-sm font-semibold text-gray-500 cursor-pointer hover:text-gray-900">Settings</div>
-        <div class="tab-item py-3 text-sm font-semibold text-gray-500 cursor-pointer hover:text-gray-900">Connections</div>
       </div>
 
       <div class="p-8">
@@ -82,6 +74,12 @@
                   {{ profile.username || '&nbsp;' }}
                 </div>
               </div>
+              <div>
+                <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Mobile Number</label>
+                <div class="w-full bg-[#f9fafb] border border-transparent rounded-md px-3 py-2 text-sm text-gray-700">
+                  {{ profile.mobile_no || '&nbsp;' }}
+                </div>
+              </div>
             </div>
 
             <!-- Col 3 -->
@@ -101,6 +99,36 @@
               <div class="flex items-center gap-3 pt-2">
                 <input type="checkbox" [checked]="profile.send_welcome_email" disabled class="w-4 h-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900">
                 <label class="text-sm font-bold text-gray-700">Send Welcome Email</label>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Roles & Permissions Section -->
+        <div class="mb-12 pt-8 border-t border-gray-100">
+          <h3 class="text-md font-bold text-gray-900 mb-6">Roles & Permissions</h3>
+          
+          <div class="space-y-6">
+            <div *ngIf="profile.role_profile_name">
+              <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Role Profile</label>
+              <div class="inline-block bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-sm font-bold border border-blue-100">
+                {{ profile.role_profile_name }}
+              </div>
+            </div>
+
+            <div *ngIf="profile.module_profile">
+              <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Module Profile</label>
+              <div class="inline-block bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-lg text-sm font-bold border border-emerald-100">
+                {{ profile.module_profile }}
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Assigned Roles</label>
+              <div class="flex flex-wrap gap-2">
+                <span *ngFor="let r of profile.roles" class="bg-gray-50 text-gray-700 px-3 py-1 rounded-md text-xs font-semibold border border-gray-200">
+                  {{ r.role }}
+                </span>
+                <span *ngIf="!profile.roles || profile.roles.length === 0" class="text-gray-400 italic text-sm">No roles assigned</span>
               </div>
             </div>
           </div>

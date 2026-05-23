@@ -93,9 +93,20 @@ export class FirebaseAuthService {
   async login(email: string, password: string): Promise<any> {
     try {
       await this.http.post(`${this.baseUrl}api/method/login`, { usr: email, pwd: password }, { withCredentials: true }).toPromise();
-      await this.fetchUserDetails(email);
+      
+      let actualUserId = email;
+      try {
+        const userRes: any = await this.http.get(`${this.baseUrl}api/method/frappe.auth.get_logged_user`, { withCredentials: true }).toPromise();
+        if (userRes && userRes.message && userRes.message !== 'Guest') {
+          actualUserId = userRes.message;
+        }
+      } catch (e) {
+        console.warn('Could not fetch actual logged user id, proceeding with login input:', e);
+      }
+
+      await this.fetchUserDetails(actualUserId);
       this.router.navigate(['/']);
-      return { email: email };
+      return { email: actualUserId };
     } catch (error) {
       console.error('ERPNext Login Error:', error);
       throw error;
@@ -126,7 +137,7 @@ export class FirebaseAuthService {
   // ERPNext Registration for Buyers
   // REPLACE THESE WITH YOUR ACTUAL ADMIN KEYS FROM ERPNEXT
   private readonly API_KEY = '764ae0b7b89ab0f';
-  private readonly API_SECRET = '944d939f51e9336';
+  private readonly API_SECRET = 'c69b450d20ffcf2';
 
   async registerBuyer(buyerData: any): Promise<any> {
     const fullName = [buyerData.first_name, buyerData.middle_name, buyerData.last_name]
@@ -183,7 +194,64 @@ export class FirebaseAuthService {
   }
 
   async registerSeller(sellerData: any): Promise<any> {
-    throw new Error("Firebase registration is disabled. ERPNext registration is pending.");
+    const fullName = [sellerData.first_name, sellerData.middle_name, sellerData.last_name]
+      .filter(n => n)
+      .join(' ');
+
+    const userPayload = {
+      email: sellerData.email,
+      first_name: sellerData.first_name,
+      middle_name: sellerData.middle_name,
+      last_name: sellerData.last_name,
+      username: sellerData.username,
+      mobile_no: sellerData.mobile,
+      new_password: sellerData.password,
+      language: sellerData.language || 'en',
+      time_zone: sellerData.time_zone || 'Asia/Kolkata',
+      send_welcome_email: sellerData.send_welcome_email ? 1 : 0,
+      enabled: 1,
+      user_type: 'System User',
+      module_profile: 'seller',
+      role_profile_name: 'Seller',
+      roles: [
+        { doctype: 'Has Role', role: 'Sales Master Manager' },
+        { doctype: 'Has Role', role: 'Sales User' },
+        { doctype: 'Has Role', role: 'Seller' },
+        { doctype: 'Has Role', role: 'Stock Manager' },
+        { doctype: 'Has Role', role: 'Stock User' },
+        { doctype: 'Has Role', role: 'Supplier' }
+      ]
+    };
+
+    const supplierPayload = {
+      supplier_name: sellerData.supplier_name || fullName,
+      supplier_group: sellerData.supplier_group || 'All Supplier Groups',
+      supplier_type: sellerData.supplier_type || 'Company',
+      country: sellerData.country || 'India',
+      email_id: sellerData.email,
+      mobile_no: sellerData.mobile
+    };
+
+    const headers = {
+      'Authorization': `token ${this.API_KEY}:${this.API_SECRET}`
+    };
+
+    try {
+      // 1. Create User
+      const userRes = await this.http.post(`${this.baseUrl}api/resource/User`, userPayload, { headers, withCredentials: true }).toPromise();
+      
+      // 2. Create Supplier
+      try {
+        await this.http.post(`${this.baseUrl}api/resource/Supplier`, supplierPayload, { headers, withCredentials: true }).toPromise();
+      } catch (suppError) {
+        console.error('ERPNext Supplier Creation Error (User was created):', suppError);
+      }
+
+      return userRes;
+    } catch (error) {
+      console.error('ERPNext Seller Registration Error:', error);
+      throw error;
+    }
   }
 
   // Get Candid Categories from external Firestore project via REST API
