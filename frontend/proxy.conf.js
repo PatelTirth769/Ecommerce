@@ -34,6 +34,18 @@ function isPublicResource(url) {
 }
 
 module.exports = {
+  "/api/payment/*": {
+    target: "http://localhost:3636",
+    secure: false,
+    changeOrigin: true,
+    logLevel: "debug"
+  },
+  "/api/orders/*": {
+    target: "http://localhost:3636",
+    secure: false,
+    changeOrigin: true,
+    logLevel: "debug"
+  },
   "/all-products": {
     target: "https://ketty.hrhovercraft.in",
     secure: false,

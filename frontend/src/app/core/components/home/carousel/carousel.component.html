@@ -2,7 +2,7 @@
 <div class="relative w-full">
     <div class="relative h-40 overflow-hidden rounded-lg md:h-96" #sliderRef>
         <div class="duration-700 ease-in-out" *ngFor="let image of slideImages; let i = index">
-            <img [src]="image" class="absolute block w-full h-full object-cover -translate-x-1/2 -translate-y-1/2 top-1/2 left-1/2" [alt]="'Slide ' + i">
+            <img [src]="getImageUrl(image)" class="absolute block w-full h-full object-cover -translate-x-1/2 -translate-y-1/2 top-1/2 left-1/2" [alt]="'Slide ' + i">
         </div>
     </div>
     <!-- Slider indicators -->

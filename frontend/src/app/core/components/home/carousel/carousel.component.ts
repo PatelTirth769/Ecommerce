@@ -27,4 +27,11 @@ export class CarouselComponent implements OnInit{
   ngOnInit(): void {
   }
   
+  getImageUrl(image: string): string {
+    if (image && image.includes('<img')) {
+      const match = image.match(/src=(?:"|')([^"']+)(?:"|')/);
+      return match ? match[1] : image;
+    }
+    return image;
+  }
 }

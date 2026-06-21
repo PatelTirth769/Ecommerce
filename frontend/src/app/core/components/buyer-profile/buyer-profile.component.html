@@ -1,0 +1,276 @@
+<div class="erp-profile-page bg-[#f4f5f6] min-h-screen p-6 font-sans">
+  <ng-container *ngIf="(profileData$ | async) as profile; else loading">
+    
+    <!-- ERPNext Style Header -->
+    <div class="max-w-[1100px] mx-auto bg-white rounded-t-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div class="flex justify-between items-center px-6 py-4 border-b border-gray-200">
+        <div class="flex items-center gap-4">
+          <span class="text-xl text-gray-500">☰</span>
+          <h2 class="text-xl font-bold text-gray-900">{{ profile.full_name || profile.name }}</h2>
+          <span class="bg-green-50 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border border-green-100">
+            {{ profile.enabled ? 'Active' : 'Disabled' }}
+          </span>
+        </div>
+        <div class="flex items-center gap-2">
+        </div>
+      </div>
+
+      <!-- ERPNext Style Tabs -->
+      <div class="flex gap-8 px-6 border-b border-gray-200 overflow-x-auto">
+        <div 
+          (click)="switchTab('details')"
+          [ngClass]="activeTab === 'details' ? 'border-b-2 border-gray-900 text-gray-900 font-semibold' : 'text-gray-500 border-transparent hover:text-gray-700'"
+          class="tab-item py-3 text-sm cursor-pointer border-b-2 transition-all">
+          User Details
+        </div>
+        <div 
+          (click)="switchTab('orders')"
+          [ngClass]="activeTab === 'orders' ? 'border-b-2 border-gray-900 text-gray-900 font-semibold' : 'text-gray-500 border-transparent hover:text-gray-700'"
+          class="tab-item py-3 text-sm cursor-pointer border-b-2 transition-all">
+          Orders
+        </div>
+      </div>
+
+      <div class="p-8">
+        <!-- User Details Tab Content -->
+        <div *ngIf="activeTab === 'details'">
+          <!-- Enabled Toggle -->
+          <div class="flex items-center gap-3 mb-8">
+            <input type="checkbox" [checked]="profile.enabled" disabled class="w-4 h-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900">
+            <label class="text-sm font-bold text-gray-700">Enabled</label>
+          </div>
+
+          <!-- Basic Info Section -->
+          <div class="mb-12">
+            <h3 class="text-md font-bold text-gray-900 mb-6">Basic Info</h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-x-12 gap-y-6">
+              <!-- Col 1 -->
+              <div class="space-y-6">
+                <div>
+                  <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Email *</label>
+                  <div class="w-full bg-[#f9fafb] border border-transparent rounded-md px-3 py-2 text-sm text-gray-700">
+                    {{ profile.email }}
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">First Name *</label>
+                  <div class="w-full bg-[#f9fafb] border border-transparent rounded-md px-3 py-2 text-sm text-gray-700">
+                    {{ profile.first_name }}
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Middle Name</label>
+                  <div class="w-full bg-[#f9fafb] border border-transparent rounded-md px-3 py-2 text-sm text-gray-700">
+                    {{ profile.middle_name || '&nbsp;' }}
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Last Name</label>
+                  <div class="w-full bg-[#f9fafb] border border-transparent rounded-md px-3 py-2 text-sm text-gray-700">
+                    {{ profile.last_name || '&nbsp;' }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Col 2 -->
+              <div class="space-y-6">
+                <div>
+                  <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Full Name</label>
+                  <div class="w-full bg-[#f9fafb] border border-transparent rounded-md px-3 py-2 text-sm text-gray-700">
+                    {{ profile.full_name }}
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Username</label>
+                  <div class="w-full bg-[#f9fafb] border border-transparent rounded-md px-3 py-2 text-sm text-gray-700">
+                    {{ profile.username || '&nbsp;' }}
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Mobile Number</label>
+                  <div class="w-full bg-[#f9fafb] border border-transparent rounded-md px-3 py-2 text-sm text-gray-700">
+                    {{ profile.mobile_no || '&nbsp;' }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Col 3 -->
+              <div class="space-y-6">
+                <div>
+                  <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Language</label>
+                  <div class="w-full bg-[#f9fafb] border border-transparent rounded-md px-3 py-2 text-sm text-gray-700">
+                    {{ profile.language || 'English' }}
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Time Zone</label>
+                  <div class="w-full bg-[#f9fafb] border border-transparent rounded-md px-3 py-2 text-sm text-gray-700">
+                    {{ profile.time_zone || 'Asia/Kolkata' }}
+                  </div>
+                </div>
+                <div class="flex items-center gap-3 pt-2">
+                  <input type="checkbox" [checked]="profile.send_welcome_email" disabled class="w-4 h-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900">
+                  <label class="text-sm font-bold text-gray-700">Send Welcome Email</label>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Roles & Permissions Section -->
+          <div class="mb-12 pt-8 border-t border-gray-100">
+            <h3 class="text-md font-bold text-gray-900 mb-6">Roles & Permissions</h3>
+            
+            <div class="space-y-6">
+              <div *ngIf="profile.role_profile_name">
+                <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Role Profile</label>
+                <div class="inline-block bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-sm font-bold border border-blue-100">
+                  {{ profile.role_profile_name }}
+                </div>
+              </div>
+
+              <div *ngIf="profile.module_profile">
+                <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Module Profile</label>
+                <div class="inline-block bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-lg text-sm font-bold border border-emerald-100">
+                  {{ profile.module_profile }}
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Assigned Roles</label>
+                <div class="flex flex-wrap gap-2">
+                  <span *ngFor="let r of profile.roles" class="bg-gray-50 text-gray-700 px-3 py-1 rounded-md text-xs font-semibold border border-gray-200">
+                    {{ r.role }}
+                  </span>
+                  <span *ngIf="!profile.roles || profile.roles.length === 0" class="text-gray-400 italic text-sm">No roles assigned</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="border-t border-gray-100 pt-8 mt-12">
+              <h4 class="text-md font-bold text-gray-900 mb-6">Activity & Metadata</h4>
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
+                  <div>
+                      <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Creation</label>
+                      <p class="text-xs text-gray-600">{{ profile.creation | date:'medium' }}</p>
+                  </div>
+                  <div>
+                      <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Last Active</label>
+                      <p class="text-xs text-gray-600">{{ profile.last_active | date:'medium' }}</p>
+                  </div>
+                  <div>
+                      <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">User Type</label>
+                      <p class="text-xs text-gray-600 font-semibold">{{ profile.user_type }}</p>
+                  </div>
+              </div>
+          </div>
+        </div>
+
+        <!-- Orders Tab Content -->
+        <div *ngIf="activeTab === 'orders'">
+          <h3 class="text-md font-bold text-gray-900 mb-6">Order History</h3>
+          
+          <ng-container *ngIf="(orders$ | async) as orders; else loadingOrders">
+            <div *ngIf="orders.length === 0" class="flex flex-col items-center justify-center py-12 text-gray-500">
+              <i class="fa-solid fa-box-open text-4xl mb-4"></i>
+              <p class="text-lg font-semibold">No orders found</p>
+              <p class="text-sm">You haven't placed any orders yet.</p>
+              <a routerLink="/" class="mt-4 px-6 py-2 bg-gray-800 text-white rounded-md text-sm font-semibold hover:bg-gray-700 transition-all">Go Shopping</a>
+            </div>
+
+            <div *ngIf="orders.length > 0" class="space-y-6">
+              <div *ngFor="let order of orders" class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+                <!-- Order Header -->
+                <div class="bg-gray-50 px-6 py-4 border-b border-gray-200 flex flex-wrap justify-between items-center gap-4">
+                  <div>
+                    <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Order ID</p>
+                    <p class="text-sm font-bold text-gray-900">{{ order.orderId }}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Date Placed</p>
+                    <p class="text-sm text-gray-900">{{ order.createdAt | date:'medium' }}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Amount</p>
+                    <p class="text-sm font-bold text-gray-900">&#8377;{{ order.totalAmount | number:'1.2-2' }}</p>
+                  </div>
+                  <div>
+                    <span class="bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded-full border border-green-200 uppercase tracking-wide">
+                      {{ order.status }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Order Body (Items) -->
+                <div class="p-6 divide-y divide-gray-100">
+                  <div *ngFor="let item of order.items" class="py-4 first:pt-0 last:pb-0 flex items-center gap-4">
+                    <img *ngIf="item.image" [src]="item.image" [alt]="item.title" class="w-16 h-16 object-cover rounded-md border border-gray-100 bg-gray-50">
+                    <div *ngIf="!item.image" class="w-16 h-16 flex items-center justify-center bg-gray-100 rounded-md text-gray-400">
+                      <i class="fa-solid fa-image"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <p class="text-sm font-semibold text-gray-900 truncate" [title]="item.title">{{ item.title }}</p>
+                      <p class="text-xs text-gray-500">Code: {{ item.item_code }}</p>
+                      <p class="text-xs text-gray-700 mt-1">Qty: {{ item.qty }} x &#8377;{{ item.price | number:'1.2-2' }}</p>
+                    </div>
+                    <div class="text-right">
+                      <p class="text-sm font-bold text-gray-900">&#8377;{{ item.totalprice | number:'1.2-2' }}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Order Footer (Address and Summary Breakdown) -->
+                <div class="bg-gray-50/50 px-6 py-4 border-t border-gray-100 grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+                  <div>
+                    <p class="font-semibold text-gray-800 mb-2">Shipping Address</p>
+                    <p class="text-gray-600 text-xs leading-relaxed">
+                      {{ order.shippingAddress.firstName }} {{ order.shippingAddress.lastName }}<br>
+                      {{ order.shippingAddress.address }}<br>
+                      {{ order.shippingAddress.city }}, {{ order.shippingAddress.state }} - {{ order.shippingAddress.postalCode }}<br>
+                      {{ order.shippingAddress.country }}<br>
+                      Phone: {{ order.shippingAddress.mobile }}
+                    </p>
+                  </div>
+                  <div class="flex flex-col justify-end items-end text-xs text-gray-600 space-y-1">
+                    <div class="flex justify-between w-full max-w-[200px]">
+                      <span>Subtotal:</span>
+                      <span>&#8377;{{ order.subtotal | number:'1.2-2' }}</span>
+                    </div>
+                    <div class="flex justify-between w-full max-w-[200px]">
+                      <span>Taxes (GST 18%):</span>
+                      <span>&#8377;{{ order.tax | number:'1.2-2' }}</span>
+                    </div>
+                    <div class="flex justify-between w-full max-w-[200px]" *ngIf="order.discount > 0">
+                      <span>Discount:</span>
+                      <span>-&#8377;{{ order.discount | number:'1.2-2' }}</span>
+                    </div>
+                    <div class="flex justify-between w-full max-w-[200px] font-bold text-sm text-gray-900 pt-2 border-t border-gray-200">
+                      <span>Grand Total:</span>
+                      <span>&#8377;{{ order.totalAmount | number:'1.2-2' }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </ng-container>
+
+          <ng-template #loadingOrders>
+            <div class="flex flex-col items-center justify-center py-12">
+              <div class="w-8 h-8 border-4 border-gray-200 border-t-gray-800 rounded-full animate-spin"></div>
+              <p class="mt-2 text-xs text-gray-500">Loading Order History...</p>
+            </div>
+          </ng-template>
+        </div>
+
+      </div>
+    </div>
+  </ng-container>
+
+  <ng-template #loading>
+    <div class="flex flex-col items-center justify-center min-h-[60vh]">
+      <div class="w-12 h-12 border-4 border-gray-200 border-t-gray-900 rounded-full animate-spin"></div>
+      <p class="mt-4 text-gray-500 font-medium tracking-wide uppercase text-[10px]">Loading User Profile...</p>
+    </div>
+  </ng-template>
+</div>

@@ -6,6 +6,7 @@ export const environment = {
   loginEndpoint: 'api/method/login',
   productsEndpoint: 'all-products',
   websiteItemEndpoint: 'api/resource/Website%20Item',
+  razorpayKey: 'rzp_live_mXMqD6Uq31IPNc',
   firebase: {
     apiKey: "AIzaSyDaWAOPDZeATTSL7kQ-CDkbFstyvpTMkNM",
     authDomain: "hr-poc-cdec5.firebaseapp.com",
