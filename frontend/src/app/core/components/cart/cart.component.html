@@ -77,12 +77,12 @@
                         <span class="text-xl text-gray-600">&#8377;{{discountAmount | number:'1.2-2'}}</span>
                     </div>
                 </div>
-                <div class="flex justify-between pb-3">
+                <div *ngFor="let tax of appliedTaxes" class="flex justify-between pb-3">
                     <div>
-                        <span class="text-xl text-gray-600">Taxes</span>
+                        <span class="text-xl text-gray-600">{{tax.description}}</span>
                     </div>
                     <div class="text-right">
-                        <span class="text-xl text-gray-600">&#8377;{{gstAmount | number:'1.2-2'}}</span>
+                        <span class="text-xl text-gray-600">&#8377;{{tax.amount | number:'1.2-2'}}</span>
                     </div>
                 </div>
 

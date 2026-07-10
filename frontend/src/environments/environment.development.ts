@@ -4,7 +4,7 @@ export const environment = {
   baseAPIURL: '/',
   fileBaseURL: 'https://ketty.hrhovercraft.in/',
   loginEndpoint: 'api/method/login',
-  productsEndpoint: 'all-products',
+  productsEndpoint: 'api/resource/Website Item',
   websiteItemEndpoint: 'api/resource/Website%20Item',
   razorpayKey: 'rzp_live_mXMqD6Uq31IPNc',
   firebase: {

@@ -4,6 +4,11 @@ import { BehaviorSubject, Observable, catchError, map, of, switchMap, tap, throw
 import { environment } from 'src/environments/environment';
 import { Product } from 'src/app/modules/product/model';
 
+export interface TaxDetail {
+  description: string;
+  amount: number;
+}
+
 interface QuotationItemRecord extends Record<string, unknown> {
   name?: string;
   item_code?: string;
@@ -44,6 +49,7 @@ interface QuotationRecord extends Record<string, unknown> {
   additional_discount_amount?: number;
   docstatus?: number;
   modified?: string;
+  taxes?: Array<Record<string, unknown>>;
 }
 
 interface QuotationListResponse {
@@ -131,6 +137,8 @@ export class CartService {
   public shippingAmount = new BehaviorSubject<number>(0);
   public discountAmount = new BehaviorSubject<number>(0);
   public gstAmount=new BehaviorSubject<number>(0);
+  public taxDescription = new BehaviorSubject<string>('Taxes');
+  public appliedTaxes = new BehaviorSubject<TaxDetail[]>([]);
   public estimatedTotal=new BehaviorSubject<number>(0);
 
   constructor(private http: HttpClient) {
@@ -197,6 +205,8 @@ export class CartService {
     this.shippingAmount.next(0);
     this.discountAmount.next(0);
     this.gstAmount.next(0);
+    this.taxDescription.next('Taxes');
+    this.appliedTaxes.next([]);
     this.estimatedTotal.next(0);
   }
 
@@ -309,6 +319,21 @@ export class CartService {
 
     this.totalAmount.next(netTotal);
     this.gstAmount.next(gst);
+
+    const taxesArray: TaxDetail[] = [];
+    if (quotation.taxes && Array.isArray(quotation.taxes) && quotation.taxes.length > 0) {
+      quotation.taxes.forEach((t: any) => {
+        taxesArray.push({
+          description: String(t.description || t.account_head || 'Taxes'),
+          amount: Number(t.tax_amount || 0)
+        });
+      });
+    } else {
+      taxesArray.push({ description: 'Taxes', amount: gst });
+    }
+    this.appliedTaxes.next(taxesArray);
+    this.taxDescription.next(taxesArray.length > 0 ? taxesArray[0].description : 'Taxes');
+
     this.shippingAmount.next(shipping);
     this.discountAmount.next(discount);
     this.estimatedTotal.next(grandTotal);
@@ -531,6 +556,8 @@ export class CartService {
       this.discountAmount.next(0);
       const gst = baseSubtotal * 0.18;
       this.gstAmount.next(gst);
+      this.taxDescription.next('Taxes');
+      this.appliedTaxes.next([{ description: 'Taxes', amount: gst }]);
       this.shippingAmount.next(0);
       this.estimatedTotal.next(baseSubtotal + gst);
       return;
@@ -576,6 +603,8 @@ export class CartService {
     this.totalAmount.next(baseSubtotal);
     this.discountAmount.next(totalDiscount);
     this.gstAmount.next(gst);
+    this.taxDescription.next('Taxes');
+    this.appliedTaxes.next([{ description: 'Taxes', amount: gst }]);
     this.shippingAmount.next(0);
     this.estimatedTotal.next(taxableAmount + gst);
   }
@@ -902,6 +931,11 @@ export class CartService {
   }
 
   private refreshCartFromMethodApi(): Observable<Product[]> {
+    const userEmail = this.getCurrentUserEmail();
+    if (!userEmail || userEmail === 'Guest') {
+      return of([] as Product[]);
+    }
+
     return this.postWithFallback(this.getCartQuotationEndpoints, {})
       .pipe(
         map((response) => {
@@ -1345,6 +1379,8 @@ export class CartService {
     const gstRate=0.18;
     this.totalAmount.next(total);
     this.gstAmount.next(gstRate*total);
+    this.taxDescription.next('Taxes');
+    this.appliedTaxes.next([{ description: 'Taxes', amount: gstRate*total }]);
     this.shippingAmount.next(0);
     this.discountAmount.next(0);
     this.estimatedTotal.next(total+this.gstAmount.value);

@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, FormControl, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { CartService } from 'src/app/core/services/cart.service';
+import { CartService, TaxDetail } from 'src/app/core/services/cart.service';
 import { PaymentService } from 'src/app/core/services/payment.service';
 import { ToastService } from 'src/app/core/services/toast.service';
 import { environment } from 'src/environments/environment';
@@ -16,6 +16,8 @@ export class CheckoutComponent implements OnInit {
   gstAmount: number = 0;
   shippingCost: number = 0;
   discountAmount: number = 0;
+  taxDescription: string = 'Taxes';
+  appliedTaxes: TaxDetail[] = [];
   grandTotal: number = 0;
   shippingForm!: FormGroup;
 
@@ -59,11 +61,19 @@ export class CheckoutComponent implements OnInit {
   }
 
   getTotal(): void {
-    // Manually calculate 18% GST on the subtotal (total)
     this.cartService.totalAmount.subscribe(data => {
       this.total = Number(data.toFixed(2));
-      this.gstAmount = Number((this.total * 0.18).toFixed(2));
       this.updateGrandTotal();
+    });
+    this.cartService.gstAmount.subscribe(data => {
+      this.gstAmount = Number(data.toFixed(2));
+      this.updateGrandTotal();
+    });
+    this.cartService.taxDescription.subscribe(data => {
+      this.taxDescription = data;
+    });
+    this.cartService.appliedTaxes.subscribe(data => {
+      this.appliedTaxes = data;
     });
     this.cartService.shippingAmount.subscribe(data => {
       this.shippingCost = Number(data.toFixed(2));

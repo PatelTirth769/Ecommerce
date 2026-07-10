@@ -21,6 +21,13 @@ interface ProductApiShape {
     rate?: number;
     count?: number;
   };
+  name?: string;
+  item_name?: string;
+  web_item_name?: string;
+  web_long_description?: string;
+  item_group?: string;
+  website_image?: string;
+  standard_rate?: number;
 }
 
 @Injectable({
@@ -35,19 +42,22 @@ export class ProductService {
 
   constructor(private http: HttpClient) {}
 
-  private toProduct(item: ProductApiShape): Product {
+  private toProduct(item: any): Product {
+    const title = item.title ?? item.web_item_name ?? item.item_name ?? item.name ?? '';
+    const images = item.images ?? (item.website_image ? [item.website_image] : []);
+    
     return {
-      id: Number(item.id ?? 0),
-      title: item.title ?? '',
-      description: item.description ?? '',
-      category: item.category ?? '',
-      type: item.type ?? '',
-      sizes: (item.sizes ?? []).map((size) => String(size)),
-      images: item.images ?? [],
+      id: Number(item.id ?? item.name ?? 0),
+      title: title,
+      description: item.description ?? item.web_long_description ?? item.short_description ?? '',
+      category: item.category ?? item.item_group ?? '',
+      type: item.type ?? item.item_group ?? '',
+      sizes: (item.sizes ?? []).map((size: any) => String(size)),
+      images: images,
       stock: item.stock ?? 'In stock',
-      price: Number(item.price ?? 0),
+      price: Number(item.price ?? item.standard_rate ?? 0),
       prevprice: Number(item.prevprice ?? 0),
-      item_code: item.item_code,
+      item_code: item.item_code ?? item.name,
       rating: {
         rate: Number(item.rating?.rate ?? 0),
         count: Number(item.rating?.count ?? 0)
@@ -55,14 +65,25 @@ export class ProductService {
     };
   }
 
-  private normalizeProducts(data: Product[] | Record<string, ProductApiShape>): Product[] {
+  private normalizeProducts(data: any): Product[] {
+    if (!data) return [];
+    
+    if (data.data && Array.isArray(data.data)) {
+      return data.data.map((item: any) => this.toProduct(item));
+    }
+    if (data.message && Array.isArray(data.message)) {
+      return data.message.map((item: any) => this.toProduct(item));
+    }
+
     if (Array.isArray(data)) {
-      return data.map((item) => this.toProduct(item));
+      return data.map((item: any) => this.toProduct(item));
     }
 
     const normalizedProducts: Product[] = [];
     for (const key in data) {
-      normalizedProducts.push(this.toProduct(data[key]));
+      if (data.hasOwnProperty(key)) {
+        normalizedProducts.push(this.toProduct(data[key]));
+      }
     }
 
     return normalizedProducts;
@@ -72,9 +93,15 @@ export class ProductService {
     return value.trim().toLowerCase();
   }
 
+  private getValidProducts(data: any): Product[] {
+    let products = this.normalizeProducts(data);
+    products = products.filter(p => p.title && p.title.trim() !== '' && p.images && p.images.length > 0 && p.price > 0);
+    return products.length > 0 ? products : this.fallbackProducts;
+  }
+
   get get(): Observable<Product[]> {
-    return this.http.get<Product[] | Record<string, ProductApiShape>>(this.url).pipe(
-      map((data) => this.normalizeProducts(data)),
+    return this.http.get<any>(this.url).pipe(
+      map((data) => this.getValidProducts(data)),
       catchError((error) => {
         console.error('Error fetching products:', error);
         return of(this.fallbackProducts);
@@ -83,11 +110,11 @@ export class ProductService {
   }
 
   getByCategory(category: string): Observable<Product[]> {
-    return this.http.get<Product[] | Record<string, ProductApiShape>>(this.url, {
+    return this.http.get<any>(this.url, {
       params: new HttpParams().set('category', category)
     }).pipe(
       map((data) => {
-        const products = this.normalizeProducts(data);
+        const products = this.getValidProducts(data);
         const normalizedCategory = this.normalizeValue(category);
         return products.filter((item) => this.normalizeValue(item.category) === normalizedCategory);
       }),
@@ -100,11 +127,11 @@ export class ProductService {
   }
 
   getRelated(type: string): Observable<Product[]> {
-    return this.http.get<Product[] | Record<string, ProductApiShape>>(this.url, {
+    return this.http.get<any>(this.url, {
       params: new HttpParams().set('type', type)
     }).pipe(
       map((data) => {
-        const products = this.normalizeProducts(data);
+        const products = this.getValidProducts(data);
         const normalizedType = this.normalizeValue(type);
         return products.filter((item) => this.normalizeValue(item.type) === normalizedType);
       }),
@@ -117,7 +144,7 @@ export class ProductService {
   }
 
   getProduct(id: number): Observable<Product> {
-    return this.http.get<ProductApiShape>(`${this.url}/${id}`).pipe(
+    return this.http.get<any>(`${this.url}/${id}`).pipe(
       map((item) => this.toProduct(item)),
       catchError((error) => {
         console.error('Error fetching product:', error);
@@ -128,11 +155,11 @@ export class ProductService {
   }
 
   search(query: string): Observable<Product[]> {
-    return this.http.get<Product[] | Record<string, ProductApiShape>>(this.url, {
+    return this.http.get<any>(this.url, {
       params: new HttpParams().set('q', query)
     }).pipe(
       map((data) => {
-        const products = this.normalizeProducts(data);
+        const products = this.getValidProducts(data);
         const normalizedQuery = this.normalizeValue(query || '');
         if (!normalizedQuery) {
           return products;

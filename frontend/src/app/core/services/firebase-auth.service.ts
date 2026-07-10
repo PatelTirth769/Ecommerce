@@ -32,6 +32,13 @@ export class FirebaseAuthService {
 
   // Check Auth State on App Load
   checkLoginStatus(): void {
+    if (!localStorage.getItem('erpnext_user') && !localStorage.getItem('isLogged')) {
+      this.clearStoredUser();
+      this.userSubject.next(null);
+      this.authChecked.next(true);
+      return;
+    }
+
     this.http.get<{message: string}>(`${this.baseUrl}api/method/frappe.auth.get_logged_user`, { withCredentials: true })
       .subscribe({
         next: (res) => {

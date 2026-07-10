@@ -1,6 +1,6 @@
 import { Component,OnDestroy,OnInit } from '@angular/core';
 import { Product } from 'src/app/modules/product/model';
-import { CartService } from '../../services/cart.service';
+import { CartService, TaxDetail } from '../../services/cart.service';
 import { Router } from '@angular/router';
 import { Subscription, interval } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
@@ -35,6 +35,8 @@ export class CartComponent implements OnInit, OnDestroy{
   gstAmount!:number;
   shippingCost!:number;
   discountAmount!:number;
+  taxDescription: string = 'Taxes';
+  appliedTaxes: TaxDetail[] = [];
   estimatedTotal!:number;
   billingSameAsShipping = true;
   gstRate=0.18;
@@ -42,6 +44,8 @@ export class CartComponent implements OnInit, OnDestroy{
   subsGST!:Subscription;
   subsShipping!:Subscription;
   subsDiscount!:Subscription;
+  subsTaxDesc!:Subscription;
+  subsAppliedTaxes!:Subscription;
   subsEstimatedTotal!:Subscription;
   subsCouponCode!:Subscription;
   private pollSub!:Subscription;
@@ -72,6 +76,8 @@ export class CartComponent implements OnInit, OnDestroy{
     this.total=this.cartService.getTotal();
     this.subsTotal=this.cartService.totalAmount.subscribe(data=>this.total=Number(data.toFixed(2)));
     this.subsGST=this.cartService.gstAmount.subscribe(data=>this.gstAmount=Number(data.toFixed(2)));
+    this.subsTaxDesc=this.cartService.taxDescription.subscribe(data=>this.taxDescription=data);
+    this.subsAppliedTaxes=this.cartService.appliedTaxes.subscribe(data=>this.appliedTaxes=data);
     this.subsShipping=this.cartService.shippingAmount.subscribe(data=>this.shippingCost=Number(data.toFixed(2)));
     this.subsDiscount=this.cartService.discountAmount.subscribe(data=>this.discountAmount=Number(data.toFixed(2)));
     this.subsEstimatedTotal=this.cartService.estimatedTotal.subscribe(data=>this.estimatedTotal=Number(data.toFixed(2)));
@@ -104,6 +110,8 @@ export class CartComponent implements OnInit, OnDestroy{
   unsubscribeSubject(){
     this.subsTotal?.unsubscribe();
     this.subsGST?.unsubscribe();
+    this.subsTaxDesc?.unsubscribe();
+    this.subsAppliedTaxes?.unsubscribe();
     this.subsShipping?.unsubscribe();
     this.subsDiscount?.unsubscribe();
     this.subsEstimatedTotal?.unsubscribe();
