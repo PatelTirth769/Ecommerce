@@ -72,8 +72,7 @@
             </p>
 
             <!-- Description if available -->
-            <p class="text-xs text-gray-400 line-clamp-2 mb-3 h-8" *ngIf="item.description">
-              {{ item.description }}
+            <p class="text-xs text-gray-400 line-clamp-2 mb-3 h-8" *ngIf="item.description" [innerHTML]="item.description">
             </p>
 
             <div class="mt-auto">

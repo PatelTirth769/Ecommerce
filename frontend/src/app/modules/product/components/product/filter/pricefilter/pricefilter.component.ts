@@ -1,4 +1,4 @@
-import { Component, Directive, ElementRef, EventEmitter, OnInit, Output, Input, Renderer2, ViewChild } from '@angular/core';
+import { Component, Directive, ElementRef, EventEmitter, OnInit, AfterViewInit, Output, Input, Renderer2, ViewChild } from '@angular/core';
 import { FilterService } from 'src/app/modules/product/services/filter.service';
 
 @Component({
@@ -30,7 +30,7 @@ import { FilterService } from 'src/app/modules/product/services/filter.service';
 })
 
 
-export class PricefilterComponent implements OnInit{
+export class PricefilterComponent implements OnInit, AfterViewInit {
   minVal=100;
   maxVal=10000;
   min=0;
@@ -42,10 +42,19 @@ export class PricefilterComponent implements OnInit{
   constructor(private renderer:Renderer2,private filterService:FilterService){}
 
   ngOnInit(){
-    this.setProgress();
+  }
+
+  ngAfterViewInit(){
+    // setTimeout to prevent ExpressionChangedAfterItHasBeenCheckedError
+    setTimeout(() => {
+      if (this.progress) {
+        this.setProgress();
+      }
+    });
   }
 
   setProgress(){
+    if (!this.progress) return;
     const progress=this.progress.nativeElement;
     this.renderer.setStyle(progress,'left',(this.minVal / this.max) * 100 + "%");
     this.renderer.setStyle(progress,'right',100-(this.maxVal / this.max) * 100 + "%");

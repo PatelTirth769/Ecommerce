@@ -109,9 +109,6 @@
           <button class="rounded-lg bg-gray-100 px-5 py-2.5 text-base font-medium text-gray-700 hover:bg-gray-200 transition-colors">Contact Us</button>
         </div>
 
-        <p class="text-gray-700 text-base leading-7 break-words whitespace-pre-line">
-          {{erpLongDescription || product.description}}
-        </p>
       </div>
     </div>
   </article>
@@ -160,9 +157,8 @@
 
         <!-- Description -->
         <div class="mb-6">
-          <p class="text-gray-700 leading-relaxed whitespace-pre-line">
-            {{product.description}}
-          </p>
+          <div class="text-gray-700 leading-relaxed description-html" [innerHTML]="product.description">
+          </div>
         </div>
 
         <!-- Price Section -->
@@ -243,9 +239,8 @@
           <h3 class="text-xl font-bold mb-4">Product Details</h3>
           <div class="bg-gray-50 p-4 rounded">
             <h5 class="font-semibold text-gray-900 mb-2">GENERAL INFORMATION</h5>
-            <p class="text-gray-700 text-sm leading-relaxed">
-              {{product.description}}
-            </p>
+            <div class="text-gray-700 text-sm leading-relaxed description-html" [innerHTML]="product.description">
+            </div>
             <div class="mt-4 grid grid-cols-2 gap-4 text-sm">
               <div>
                 <p class="text-gray-600 font-medium">Category</p>
@@ -262,63 +257,99 @@
     
   </article>
 
-  <article class="mt-4 rounded-2xl border border-gray-200 bg-white p-5 md:p-6 lg:p-7 shadow-sm" *ngIf="isErpDetail">
-    <h3 class="text-3xl md:text-4xl font-semibold text-gray-800 mb-6">Product Details</h3>
-    <div class="rounded-xl border border-gray-100 bg-gray-50/60 p-4 md:p-5">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-4 text-base md:text-lg text-gray-700">
-      <ng-container *ngFor="let row of detailRows">
-        <p class="text-gray-500 capitalize">{{ row.label }}</p>
-        <p class="text-gray-900 font-medium break-words">{{ row.value }}</p>
-      </ng-container>
-      </div>
+  <article class="mt-4 rounded-2xl border border-gray-200 bg-white shadow-sm" *ngIf="isErpDetail">
+    
+    <!-- TABS NAVIGATION -->
+    <div class="border-b border-gray-200 px-5 md:px-6 lg:px-7 pt-2">
+      <nav class="-mb-px flex space-x-8 overflow-x-auto" aria-label="Tabs">
+        <button (click)="activeTab = 'details'"
+          [class]="activeTab === 'details' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+          class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg transition-colors">
+          Product Details
+        </button>
+        <button (click)="activeTab = 'reviews'"
+          [class]="activeTab === 'reviews' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+          class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg transition-colors">
+          Customer Reviews
+        </button>
+        <button (click)="activeTab = 'description'"
+          [class]="activeTab === 'description' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+          class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg transition-colors">
+          Product Description
+        </button>
+      </nav>
     </div>
 
-    <div class="my-8 border-b border-gray-200"></div>
-
-    <div class="flex items-center justify-between gap-3 mb-6 flex-wrap">
-      <h3 class="text-3xl md:text-4xl font-semibold text-gray-800">Customer Reviews</h3>
-      <button class="rounded-xl bg-gray-100 px-4 py-2 text-base font-medium text-gray-700 hover:bg-gray-200 transition-colors">Write a Review</button>
-    </div>
-
-    <div class="rounded-xl border border-gray-100 bg-gray-50/60 p-4 md:p-5">
-      <div class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-7 mb-6">
-      <div class="flex flex-col items-center justify-center lg:border-r border-gray-200 lg:pr-6">
-        <p class="text-6xl font-semibold text-gray-900">{{erpAverageRating | number:'1.1-1'}}</p>
-        <p class="text-2xl text-gray-600 mt-2">{{getErpRatedCount()}} ratings</p>
-        <div class="mt-3 rounded-full bg-gray-100 px-4 py-2 flex items-center gap-2">
-          <i class="fa-solid fa-star" *ngFor="let star of erpStars" [ngClass]="isAverageStarFilled(star) ? 'text-amber-300' : 'text-gray-300'"></i>
-        </div>
-        <p class="text-2xl text-gray-600 mt-2">{{erpAverageRating | number:'1.1-1'}} out of 5</p>
-      </div>
-
-      <div class="space-y-3">
-        <div class="flex items-center gap-3" *ngFor="let star of erpStars">
-          <span class="w-16 md:w-20 text-base md:text-lg text-gray-700">{{ star }} star</span>
-          <div class="h-2.5 flex-1 rounded-full bg-gray-200 overflow-hidden">
-            <div class="h-full bg-gray-500" [style.width.%]="getErpStarPercentage(star)"></div>
-          </div>
-          <span class="w-16 text-base md:text-lg text-gray-500 text-right">{{getErpStarPercentage(star) | number:'1.0-1'}}%</span>
-        </div>
-      </div>
-    </div>
-
-    <div *ngIf="erpReviews.length > 0; else noErpReviews" class="space-y-6">
-      <div class="border-t border-gray-200 pt-6" *ngFor="let review of erpReviews">
-        <div class="flex items-center gap-2 mb-2" *ngIf="review.title || review.rating > 0">
-          <p class="text-2xl font-semibold text-gray-800" *ngIf="review.title">{{review.title}}</p>
-          <div class="flex items-center gap-1" *ngIf="review.rating > 0">
-            <i class="fa-solid fa-star" *ngFor="let star of erpStars" [ngClass]="star <= review.rating ? 'text-amber-300' : 'text-gray-300'"></i>
+    <!-- TABS CONTENT -->
+    <div class="p-5 md:p-6 lg:p-7">
+      
+      <!-- TAB 1: PRODUCT DETAILS -->
+      <div *ngIf="activeTab === 'details'" class="animate-fade-in">
+        <div class="rounded-xl border border-gray-100 bg-gray-50/60 p-4 md:p-5">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-4 text-base md:text-lg text-gray-700">
+          <ng-container *ngFor="let row of detailRows">
+            <p class="text-gray-500 capitalize">{{ row.label }}</p>
+            <p class="text-gray-900 font-medium break-words">{{ row.value }}</p>
+          </ng-container>
           </div>
         </div>
-
-        <p class="text-gray-700 text-xl" *ngIf="review.comment">{{review.comment}}</p>
-        <p class="text-gray-500 text-xl mt-3">{{review.reviewer}}<span *ngIf="review.date"> • {{review.date}}</span></p>
       </div>
-    </div>
 
-    <ng-template #noErpReviews>
-      <p class="text-2xl text-gray-600">No Reviews</p>
-    </ng-template>
+      <!-- TAB 2: CUSTOMER REVIEWS -->
+      <div *ngIf="activeTab === 'reviews'" class="animate-fade-in">
+        <div class="flex items-center justify-between gap-3 mb-6 flex-wrap">
+          <h3 class="text-2xl font-semibold text-gray-800">Ratings & Reviews</h3>
+          <button class="rounded-xl bg-gray-100 px-4 py-2 text-base font-medium text-gray-700 hover:bg-gray-200 transition-colors">Write a Review</button>
+        </div>
+
+        <div class="rounded-xl border border-gray-100 bg-gray-50/60 p-4 md:p-5">
+          <div class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-7 mb-6">
+          <div class="flex flex-col items-center justify-center lg:border-r border-gray-200 lg:pr-6">
+            <p class="text-6xl font-semibold text-gray-900">{{erpAverageRating | number:'1.1-1'}}</p>
+            <p class="text-xl text-gray-600 mt-2">{{getErpRatedCount()}} ratings</p>
+            <div class="mt-3 rounded-full bg-gray-100 px-4 py-2 flex items-center gap-2">
+              <i class="fa-solid fa-star" *ngFor="let star of erpStars" [ngClass]="isAverageStarFilled(star) ? 'text-amber-300' : 'text-gray-300'"></i>
+            </div>
+            <p class="text-xl text-gray-600 mt-2">{{erpAverageRating | number:'1.1-1'}} out of 5</p>
+          </div>
+
+          <div class="space-y-3">
+            <div class="flex items-center gap-3" *ngFor="let star of erpStars">
+              <span class="w-16 md:w-20 text-base md:text-lg text-gray-700">{{ star }} star</span>
+              <div class="h-2.5 flex-1 rounded-full bg-gray-200 overflow-hidden">
+                <div class="h-full bg-gray-500" [style.width.%]="getErpStarPercentage(star)"></div>
+              </div>
+              <span class="w-16 text-base md:text-lg text-gray-500 text-right">{{getErpStarPercentage(star) | number:'1.0-1'}}%</span>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="erpReviews.length > 0; else noErpReviews" class="space-y-6">
+          <div class="border-t border-gray-200 pt-6" *ngFor="let review of erpReviews">
+            <div class="flex items-center gap-2 mb-2" *ngIf="review.title || review.rating > 0">
+              <p class="text-xl font-semibold text-gray-800" *ngIf="review.title">{{review.title}}</p>
+              <div class="flex items-center gap-1" *ngIf="review.rating > 0">
+                <i class="fa-solid fa-star" *ngFor="let star of erpStars" [ngClass]="star <= review.rating ? 'text-amber-300' : 'text-gray-300'"></i>
+              </div>
+            </div>
+
+            <p class="text-gray-700 text-lg" *ngIf="review.comment">{{review.comment}}</p>
+            <p class="text-gray-500 text-lg mt-3">{{review.reviewer}}<span *ngIf="review.date"> • {{review.date}}</span></p>
+          </div>
+        </div>
+
+        <ng-template #noErpReviews>
+          <p class="text-xl text-gray-600">No Reviews</p>
+        </ng-template>
+        </div>
+      </div>
+
+      <!-- TAB 3: PRODUCT DESCRIPTION -->
+      <div *ngIf="activeTab === 'description'" class="animate-fade-in">
+        <div class="text-gray-700 text-base leading-7 break-words description-html" [innerHTML]="erpLongDescription || product.description">
+        </div>
+      </div>
+
     </div>
   </article>
 

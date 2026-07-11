@@ -1,10 +1,12 @@
 export const environment = {
   production: false,
+  nodeBackendUrl: '', // In dev, we keep this empty so it uses proxy.conf.js
+  erpBaseUrl: '', // In dev, we keep this empty so it uses proxy.conf.js
   sellerApiDomain: 'https://candidoffers.com:3636/api',
   baseAPIURL: '',
   fileBaseURL: '',
   loginEndpoint: 'api/method/login',
-  productsEndpoint: 'api/resource/Website Item',
+  productsEndpoint: 'all-products',
   websiteItemEndpoint: 'api/resource/Website%20Item',
   razorpayKey: 'rzp_live_mXMqD6Uq31IPNc',
   firebase: {

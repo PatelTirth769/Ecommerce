@@ -1,6 +1,6 @@
 import { Component, OnDestroy } from '@angular/core';
 import { FormGroup, FormBuilder, FormControl, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
-import { FirebaseAuthService } from '../../services/firebase-auth.service';
+import { FirebaseAuthService } from '../../core/services/firebase-auth.service';
 import { LoginRequest } from 'src/app/shared/services/auth/auth.model';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';

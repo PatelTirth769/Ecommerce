@@ -46,6 +46,24 @@ module.exports = {
     changeOrigin: true,
     logLevel: "debug"
   },
+  "/api/orders": {
+    target: "http://localhost:3636",
+    secure: false,
+    changeOrigin: true,
+    logLevel: "debug"
+  },
+  "/api/sellers": {
+    target: "http://localhost:3636",
+    secure: false,
+    changeOrigin: true,
+    logLevel: "debug"
+  },
+  "/api/sellers/*": {
+    target: "http://localhost:3636",
+    secure: false,
+    changeOrigin: true,
+    logLevel: "debug"
+  },
   "/all-products": {
     target: "https://ketty.hrhovercraft.in",
     secure: false,

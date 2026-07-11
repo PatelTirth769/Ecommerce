@@ -1,8 +1,8 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ItemRecord, WebsiteItem, WebsiteItemService } from '../../services/website-item.service';
+import { ItemRecord, WebsiteItem, WebsiteItemService } from '../../core/services/website-item.service';
 import { Router } from '@angular/router';
-import { CartService } from '../../services/cart.service';
+import { CartService } from '../../core/services/cart.service';
 import { Product } from 'src/app/modules/product/model';
 import { Subscription, catchError, forkJoin, map, of } from 'rxjs';
 

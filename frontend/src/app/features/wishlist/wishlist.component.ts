@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { WishlistService, WishlistItem } from '../../services/wishlist.service';
-import { WebsiteItemService, ItemRecord } from '../../services/website-item.service';
-import { Product } from '../../../modules/product/model';
+import { WishlistService, WishlistItem } from '../../core/services/wishlist.service';
+import { WebsiteItemService, ItemRecord } from '../../core/services/website-item.service';
+import { Product } from '../../modules/product/model';
 import { Subscription, forkJoin, of } from 'rxjs';
 import { catchError, map, switchMap } from 'rxjs/operators';
 

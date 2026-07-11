@@ -5,27 +5,28 @@ import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { HeaderComponent } from './core/layout/components/header/header.component';
 import { FooterComponent } from './core/layout/components/footer/footer.component';
-import { LoginComponent } from './core/components/login/login.component';
-import { RegisterComponent } from './core/components/register/register.component';
-import { HomeComponent } from './core/components/home/home.component';
-import { CarouselComponent } from './core/components/home/carousel/carousel.component';
-import { CartComponent } from './core/components/cart/cart.component';
-import { CartitemComponent } from './core/components/cart/cartitem/cartitem.component';
+import { LoginComponent } from './features/login/login.component';
+import { RegisterComponent } from './features/register/register.component';
+import { HomeComponent } from './features/home/home.component';
+import { CarouselComponent } from './features/home/carousel/carousel.component';
+import { CartComponent } from './features/cart/cart.component';
+import { CartitemComponent } from './features/cart/cartitem/cartitem.component';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { Page404Component } from './core/components/page404/page404.component';
-import { SearchresultComponent } from './core/components/searchresult/searchresult.component';
+import { Page404Component } from './features/page404/page404.component';
+import { SearchresultComponent } from './features/searchresult/searchresult.component';
 import { SearchComponent } from './core/layout/components/header/search/search.component';
 import { AuthinterceptorService } from './shared/services/auth/authinterceptor.service';
 import { SharedModule } from './shared/shared.module';
-import { ProductMasterComponent } from './core/components/product-master/product-master.component';
-import { SellerScreenComponent } from './core/components/seller-screen/seller-screen.component';
-import { SellerRegistrationComponent } from './core/components/seller-registration/seller-registration.component';
-import { BuyerProfileComponent } from './core/components/buyer-profile/buyer-profile.component';
+import { ProductMasterComponent } from './features/product-master/product-master.component';
+import { SellerScreenComponent } from './features/seller-screen/seller-screen.component';
+import { SellerRegistrationComponent } from './features/seller-registration/seller-registration.component';
+import { BuyerProfileComponent } from './features/buyer-profile/buyer-profile.component';
 import { environment } from '../environments/environment';
 import { AngularFireModule } from '@angular/fire/compat';
 import { AngularFireAuthModule } from '@angular/fire/compat/auth';
 import { AngularFirestoreModule } from '@angular/fire/compat/firestore';
-import { WishlistComponent } from './core/components/wishlist/wishlist.component';
+import { WishlistComponent } from './features/wishlist/wishlist.component';
+import { ProductModule } from './modules/product/product.module';
 
 @NgModule({
   declarations: [
@@ -54,6 +55,7 @@ import { WishlistComponent } from './core/components/wishlist/wishlist.component
     ReactiveFormsModule,
     AppRoutingModule,
     SharedModule,
+    ProductModule,
     AngularFireModule.initializeApp(environment.firebase),
     AngularFireAuthModule,
     AngularFirestoreModule

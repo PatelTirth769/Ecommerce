@@ -149,6 +149,10 @@ export class WebsiteItemService {
       return 'assets/images/logo.png';
     }
 
+    if (value.startsWith('assets/') || value.startsWith('/assets/')) {
+      return value.startsWith('/') ? value.substring(1) : value;
+    }
+
     const imageBase = environment.fileBaseURL || environment.baseAPIURL;
     const baseURL = imageBase.endsWith('/') ? imageBase : `${imageBase}/`;
     const normalizedBaseURL = baseURL.replace(/\/$/, '');

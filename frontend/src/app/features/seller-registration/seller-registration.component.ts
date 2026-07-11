@@ -6,9 +6,8 @@ import { SellerRegistrationService } from 'src/app/shared/services/seller-regist
 import { HttpClient } from '@angular/common/http';
 import { environment } from 'src/environments/environment';
 import { Router } from '@angular/router';
-import { ToastService } from '../../services/toast.service';
-
-import { FirebaseAuthService } from '../../services/firebase-auth.service';
+import { ToastService } from '../../core/services/toast.service';
+import { FirebaseAuthService } from '../../core/services/firebase-auth.service';
 
 @Component({
   selector: 'app-seller-registration',

@@ -34,6 +34,7 @@ interface ReviewRow {
 export class ProductdetailComponent implements OnInit, OnDestroy{
   isLoading=false;
   isErpDetail=false;
+  activeTab='details';
   selectedSize!:string;
   category='';
   cart:Product[]=[];
@@ -191,7 +192,8 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
 
   private toErpProduct(websiteItem: WebsiteItem, item: ItemRecord | null, sellingPrice = 0): Product {
     const title = websiteItem.web_item_name || websiteItem.item_name || item?.item_name || item?.name || websiteItem.name;
-    const description = websiteItem.description || item?.description || '';
+    const rawDescription = websiteItem.description || item?.description || '';
+    const description = this.normalizeDetailValue(rawDescription);
     const images = [
       websiteItem.website_image,
       websiteItem.thumbnail,
@@ -315,7 +317,7 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
 
   private resolveErpLongDescription(websiteItem: WebsiteItem, item: ItemRecord | null): string {
     const longDescription = websiteItem.web_long_description || websiteItem.description || item?.description || '';
-    return this.normalizeDetailValue(longDescription);
+    return this.decodeHtmlEntities(longDescription);
   }
 
   private extractErpOffers(websiteItem: WebsiteItem, item: ItemRecord | null): OfferRow[] {

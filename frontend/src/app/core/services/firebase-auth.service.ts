@@ -30,6 +30,10 @@ export class FirebaseAuthService {
     return base.endsWith('/') ? base : `${base}/`;
   }
 
+  private get nodeBackendUrl() {
+    return environment.nodeBackendUrl || '';
+  }
+
   // Check Auth State on App Load
   checkLoginStatus(): void {
     if (!localStorage.getItem('erpnext_user') && !localStorage.getItem('isLogged')) {
@@ -243,22 +247,56 @@ export class FirebaseAuthService {
       'Authorization': `token ${this.API_KEY}:${this.API_SECRET}`
     };
 
+    let userRes;
+    
+    // 1. Save to Firebase via backend API
     try {
-      // 1. Create User
-      const userRes = await this.http.post(`${this.baseUrl}api/resource/User`, userPayload, { headers, withCredentials: true }).toPromise();
+      await this.http.post(`${this.nodeBackendUrl}/api/sellers`, sellerData).toPromise();
+      console.log('Seller successfully saved to Firebase.');
+    } catch (fbError) {
+      console.error('Error saving seller to Firebase:', fbError);
+    }
+
+    try {
+      // 2. Create User in ERPNext
+      userRes = await this.http.post(`${this.baseUrl}api/resource/User`, userPayload, { headers, withCredentials: true }).toPromise();
       
-      // 2. Create Supplier
+      // 3. Create Supplier in ERPNext
       try {
         await this.http.post(`${this.baseUrl}api/resource/Supplier`, supplierPayload, { headers, withCredentials: true }).toPromise();
       } catch (suppError) {
         console.error('ERPNext Supplier Creation Error (User was created):', suppError);
       }
-
-      return userRes;
     } catch (error) {
       console.error('ERPNext Seller Registration Error:', error);
       throw error;
     }
+
+    return userRes;
+  }
+
+  // Update ERPNext User
+  updateERPNextUser(email: string, payload: any): Observable<any> {
+    const headers = {
+      'Authorization': `token ${this.API_KEY}:${this.API_SECRET}`
+    };
+    return this.http.put(`${this.baseUrl}api/resource/User/${email}`, payload, { headers, withCredentials: true });
+  }
+
+  // Fetch Seller Profile from Firebase
+  getSellerFirebaseProfile(email: string): Observable<any> {
+    return this.http.get<any>(`${this.nodeBackendUrl}/api/sellers/${email}`).pipe(
+      map(res => res.data),
+      catchError(err => {
+        console.error('Error fetching seller firebase profile:', err);
+        return of(null);
+      })
+    );
+  }
+
+  // Update Seller Profile in Firebase
+  updateSellerFirebaseProfile(data: any): Observable<any> {
+    return this.http.post<any>(`${this.nodeBackendUrl}/api/sellers`, data);
   }
 
   // Get Candid Categories from external Firestore project via REST API

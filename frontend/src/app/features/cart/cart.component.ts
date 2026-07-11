@@ -1,6 +1,6 @@
 import { Component,OnDestroy,OnInit } from '@angular/core';
 import { Product } from 'src/app/modules/product/model';
-import { CartService, TaxDetail } from '../../services/cart.service';
+import { CartService, TaxDetail } from '../../core/services/cart.service';
 import { Router } from '@angular/router';
 import { Subscription, interval } from 'rxjs';
 import { switchMap } from 'rxjs/operators';

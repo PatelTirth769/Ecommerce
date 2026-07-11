@@ -108,21 +108,15 @@ export class CartService {
   private readonly couponCodeEndpoint = this.buildApiUrl('api/resource/Coupon%20Code');
   private readonly pricingRuleEndpoint = this.buildApiUrl('api/resource/Pricing%20Rule');
   private readonly cartStorageKey = 'erpnext_active_quotation';
+  private localCartDataKey = 'erpnext_cart_items';
   private readonly cartImageCacheStorageKey = 'erpnext_cart_image_cache';
   private readonly applyCouponEndpoints = [
-    this.buildApiUrl('api/method/erpnext.shopping_cart.cart.apply_coupon_code'),
-    this.buildApiUrl('api/method/erpnext.e_commerce.shopping_cart.cart.apply_coupon_code')
+    this.buildApiUrl('api/method/webshop.webshop.shopping_cart.cart.apply_coupon_code')
   ];
   private readonly getCartQuotationEndpoints = [
-    this.buildApiUrl('api/method/erpnext.shopping_cart.cart.get_cart_quotation'),
-    this.buildApiUrl('api/method/erpnext.e_commerce.shopping_cart.cart.get_cart_quotation'),
-    this.buildApiUrl('api/method/webshop.shopping_cart.cart.get_cart_quotation'),
     this.buildApiUrl('api/method/webshop.webshop.shopping_cart.cart.get_cart_quotation')
   ];
   private readonly updateCartEndpoints = [
-    this.buildApiUrl('api/method/erpnext.shopping_cart.cart.update_cart'),
-    this.buildApiUrl('api/method/erpnext.e_commerce.shopping_cart.cart.update_cart'),
-    this.buildApiUrl('api/method/webshop.shopping_cart.cart.update_cart'),
     this.buildApiUrl('api/method/webshop.webshop.shopping_cart.cart.update_cart')
   ];
   private readonly ADMIN_TOKEN = 'token 764ae0b7b89ab0f:c69b450d20ffcf2';
@@ -142,10 +136,31 @@ export class CartService {
   public estimatedTotal=new BehaviorSubject<number>(0);
 
   constructor(private http: HttpClient) {
+    this.loadLocalCart();
+    this.totalAmount.subscribe(val => this.estimatedTotal.next(val + this.gstAmount.value));
+    
+    // Subscribe to products to save to localStorage
+    this.products.subscribe(items => {
+      try {
+        localStorage.setItem(this.localCartDataKey, JSON.stringify(items));
+      } catch (e) { }
+    });
     void this.loadCart().subscribe();
    }
   public get getCart(){
     return this.cart;
+  }
+
+  private loadLocalCart(): void {
+    try {
+      const stored = localStorage.getItem(this.localCartDataKey);
+      if (stored) {
+        this.cart = JSON.parse(stored) || [];
+        this.products.next(this.cart);
+      }
+    } catch (e) {
+      this.cart = [];
+    }
   }
 
   /**
@@ -266,6 +281,16 @@ export class CartService {
     this.cacheImageForKey(key, imageUrl);
   }
 
+  private firstPositive(...values: unknown[]): number {
+    for (const value of values) {
+      const num = Number(value);
+      if (Number.isFinite(num) && num > 0) {
+        return num;
+      }
+    }
+    return 0;
+  }
+
   private firstFinite(...values: unknown[]): number {
     for (const value of values) {
       const num = Number(value);
@@ -284,13 +309,13 @@ export class CartService {
   private updateTotalsFromQuotation(quotation: QuotationRecord, fallbackProducts: Product[]): void {
     const fallbackSubtotal = fallbackProducts.reduce((sum, item) => sum + this.toNumber(item.totalprice), 0);
 
-    const netTotal = this.firstFinite(
+    const netTotal = this.firstPositive(
       quotation.net_total,
       quotation.total,
       fallbackSubtotal
     );
 
-    const gst = this.firstFinite(
+    const gst = this.firstPositive(
       quotation.total_taxes_and_charges,
       quotation.tax_amount,
       fallbackSubtotal * 0.18
@@ -311,7 +336,7 @@ export class CartService {
       0
     );
 
-    const grandTotal = this.firstFinite(
+    const grandTotal = this.firstPositive(
       quotation.grand_total,
       quotation.rounded_total,
       netTotal + gst + shipping - discount
@@ -321,18 +346,29 @@ export class CartService {
     this.gstAmount.next(gst);
 
     const taxesArray: TaxDetail[] = [];
+    let hasPositiveTax = false;
     if (quotation.taxes && Array.isArray(quotation.taxes) && quotation.taxes.length > 0) {
       quotation.taxes.forEach((t: any) => {
+        const taxAmt = Number(t.tax_amount || 0);
+        if (taxAmt > 0) hasPositiveTax = true;
         taxesArray.push({
           description: String(t.description || t.account_head || 'Taxes'),
-          amount: Number(t.tax_amount || 0)
+          amount: taxAmt
         });
       });
-    } else {
-      taxesArray.push({ description: 'Taxes', amount: gst });
+    }
+
+    if (!hasPositiveTax) {
+      if (taxesArray.length === 1) {
+        taxesArray[0].amount = gst;
+      } else if (taxesArray.length === 0) {
+        taxesArray.push({ description: 'Taxes', amount: gst });
+      }
     }
     this.appliedTaxes.next(taxesArray);
-    this.taxDescription.next(taxesArray.length > 0 ? taxesArray[0].description : 'Taxes');
+    
+    const debugStr = `net=${netTotal} gst=${gst} fall=${fallbackSubtotal} gT=${grandTotal} it=${fallbackProducts.length}`;
+    this.taxDescription.next(debugStr);
 
     this.shippingAmount.next(shipping);
     this.discountAmount.next(discount);
@@ -782,12 +818,33 @@ export class CartService {
       return image;
     }
 
+    if (image.includes('assets/')) {
+      const match = image.match(/assets\/.*$/);
+      if (match) {
+        return match[0];
+      }
+    }
+
     if (image.includes('/files/') || image.includes('/private/')) {
       return image.startsWith('/') ? image : `/${image}`;
     }
 
     const path = image.startsWith('/') ? image : `/files/${image}`;
     return path;
+  }
+  private stripHtml(value: string): string {
+    if (!value) return '';
+    const decoded = value
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&')
+      .replace(/<\s*br\s*\/?>/gi, '\n')
+      .replace(/<\/p>/gi, '\n')
+      .replace(/<\/div>/gi, '\n');
+    
+    // We cannot use document.createElement here because it might be SSR,
+    // but this is an Angular service running in browser. Just in case, regex stripping:
+    return decoded.replace(/<[^>]*>/g, '').replace(/[ \t]+/g, ' ').trim();
   }
 
   private mapQuotationItemToProduct(item: QuotationItemRecord, index: number): Product {
@@ -800,27 +857,37 @@ export class CartService {
     const itemCode = String(item.item_code || item.item_name || item.name || `item-${index + 1}`);
     const normalizedKey = itemCode.trim().toLowerCase();
     const resolvedImage = this.resolveImageSource(item, normalizedKey);
-    this.cacheImageForKey(normalizedKey, resolvedImage);
+
+    const existingIndex = this.cart.findIndex((cartItem) => this.getCartKey(cartItem) === normalizedKey);
+    const existingItem = existingIndex >= 0 ? this.cart[existingIndex] : null;
+
+    const finalRate = rate > 0 ? rate : (existingItem ? Number(existingItem.price || 0) : 0);
+    const finalAmount = rate > 0 ? amount : finalRate * qty;
+    const finalPriceListRate = priceListRate > 0 ? priceListRate : (existingItem ? Number(existingItem.prevprice || 0) : finalRate);
+    
+    let finalImages = [resolvedImage];
+    if (resolvedImage === 'assets/images/logo.png' && existingItem && existingItem.images && existingItem.images.length > 0) {
+      finalImages = existingItem.images;
+    }
+    
+    this.cacheImageForKey(normalizedKey, finalImages[0]);
 
     return {
       id: Number(item.idx ?? index + 1),
       title: item.item_name || item.item_code || itemCode,
-      description: item.description ? String(item.description) : '',
+      description: this.stripHtml(item.description ? String(item.description) : ''),
       category: String(item.item_group || ''),
       type: item.item_code || item.item_name || itemCode,
-      sizes: [],
-      images: [resolvedImage],
-      stock: 'In cart',
-      price: rate,
-      prevprice: rate,
+      sizes: existingItem ? existingItem.sizes : [],
+      images: finalImages,
+      stock: existingItem ? existingItem.stock : 'In cart',
+      price: finalRate,
+      prevprice: finalPriceListRate,
       qty,
       discount: effectiveDiscount,
-      totalprice: amount,
+      totalprice: finalAmount,
       item_code: item.item_code || itemCode,
-      rating: {
-        rate: 0,
-        count: 0
-      }
+      rating: existingItem ? existingItem.rating : { rate: 0, count: 0 }
     };
   }
 
@@ -966,19 +1033,16 @@ export class CartService {
           const items = Array.isArray(quotation.items) ? quotation.items : [];
           const mappedItems = items.map((item, index) => this.mapQuotationItemToProduct(item, index));
           
-          if (mappedItems.length > 0 || Object.keys(quotation).length > 2) {
+          // If ERPNext dropped the item silently (mappedItems.length === 0) but we requested qty > 0,
+          // do NOT wipe out the cart totals. Only update if it's a valid quotation or a genuine delete.
+          if (mappedItems.length > 0 || (qty === 0 && Object.keys(quotation).length > 2)) {
             this.updateTotalsFromQuotation(quotation, mappedItems);
           }
           return mappedItems;
         }),
         tap(products => {
-          if (products.length > 0) {
-            console.log('[Cart] updateCartMethodApi success, syncing', products.length, 'items');
+          if (products.length > 0 || qty === 0) {
             this.syncCart(products);
-          } else if (qty === 0) {
-            // If we intended to remove (qty=0), then empty is fine
-            console.log('[Cart] updateCartMethodApi success (remove), syncing empty cart');
-            this.syncCart([]);
           } else {
             console.warn('[Cart] updateCartMethodApi returned 0 items but qty was', qty, '. Keeping local state.');
           }
@@ -1383,7 +1447,6 @@ export class CartService {
     this.appliedTaxes.next([{ description: 'Taxes', amount: gstRate*total }]);
     this.shippingAmount.next(0);
     this.discountAmount.next(0);
-    this.estimatedTotal.next(total+this.gstAmount.value);
     return total;
   }
   addQty(item:Product){
