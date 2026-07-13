@@ -1,8 +1,8 @@
 import { Component, Input, OnInit, OnDestroy } from '@angular/core';
-import { Product } from '../../../model';
+import { Product } from '../../../modules/product/model';
 import { CartService } from '../../../core/services/cart.service';
 import { WishlistService, WishlistItem } from '../../../core/services/wishlist.service';
-import { ProductService } from '../../../services/product.service';
+import { ProductService } from '../../../modules/product/services/product.service';
 import { Router,NavigationEnd } from '@angular/router';
 import { ViewportScroller } from '@angular/common';
 import { Subscription } from 'rxjs';

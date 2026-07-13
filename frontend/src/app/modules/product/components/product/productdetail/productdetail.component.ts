@@ -1,5 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
+import { ActivatedRoute, Router, NavigationEnd } from '@angular/router';
+import { Location } from '@angular/common';
 import { ProductService } from '../../../services/product.service';
 import { Product } from '../../../model';
 import { CartService } from 'src/app/core/services/cart.service';
@@ -37,8 +38,11 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
   activeTab='details';
   selectedSize!:string;
   category='';
-  cart:Product[]=[];
-  relatedProductList:Product[]=[];
+  cart: Product[] = [];
+  relatedProductList: Product[] = [];
+
+  variants: {item: ItemRecord, sellingPrice: number}[] = [];
+  selectedVariant: {item: ItemRecord, sellingPrice: number} | null = null;
   ratingList:boolean[]=[];
   images:string[]=[];
   product:Product={
@@ -59,6 +63,8 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
   discount=0;
   title:string='';
   detailRows: DetailRow[]=[];
+  currentWebsiteItem: any = null;
+  currentReviews: any[] = [];
   erpUom = '';
   erpOffers: OfferRow[] = [];
   erpLongDescription = '';
@@ -74,7 +80,8 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
     private productService:ProductService,
     private cartService:CartService,
     private websiteItemService: WebsiteItemService,
-    private router:Router
+    private router:Router,
+    private location:Location
   ){}
 
   ngOnInit(): void {
@@ -137,7 +144,7 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
         );
 
         if (!itemCode) {
-          return reviews$.pipe(map((reviews) => ({ websiteItem, item: null as ItemRecord | null, reviews, sellingPrice: 0 })));
+          return reviews$.pipe(map((reviews) => ({ websiteItem, item: null as ItemRecord | null, reviews, sellingPrice: 0, variants: [] })));
         }
 
         return forkJoin({
@@ -145,14 +152,21 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
           sellingPrice: this.websiteItemService.getItemSellingPrice(itemCode, websiteItem.item_name).pipe(catchError(() => of(0))),
           reviews: reviews$
         }).pipe(
-          map(({ item, reviews, sellingPrice }) => {
+          switchMap(({ item, reviews, sellingPrice }) => {
             console.log('🔍 Item fetched from API:', item);
-            return { websiteItem, item, reviews, sellingPrice };
+            if (item?.has_variants) {
+              return this.websiteItemService.getVariantsWithPrices(item.name).pipe(
+                map(variants => ({ websiteItem, item, reviews, sellingPrice, variants })),
+                catchError(() => of({ websiteItem, item, reviews, sellingPrice, variants: [] }))
+              );
+            }
+            return of({ websiteItem, item, reviews, sellingPrice, variants: [] });
           })
         );
       }),
       catchError((error) => {
-        console.error('Error fetching ERPNext product:', error);
+        // Redirect to the catalog if the product is not found or unpublished
+        this.router.navigate(['/categories']);
         return of(null);
       })
     ).subscribe((result) => {
@@ -162,6 +176,9 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
       }
 
       console.log('✅ Raw API Result:', result);
+
+      this.currentWebsiteItem = result.websiteItem;
+      this.currentReviews = result.reviews;
 
       this.product = this.toErpProduct(result.websiteItem, result.item, result.sellingPrice);
       this.images = this.product.images;
@@ -177,6 +194,11 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
       this.erpReviews = this.extractErpReviews(result.websiteItem, result.item, result.reviews);
       this.setErpReviewStats(this.erpReviews);
       this.relatedProductList = [];
+      this.variants = result.variants || [];
+
+      if (this.variants.length > 0) {
+        this.onVariantSelect(this.variants[0]);
+      }
 
       console.log('📋 Parsed Product:', this.product);
       console.log('📊 Detail Rows:', this.detailRows);
@@ -212,12 +234,119 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
       images: images.length > 0 ? images : [this.fallbackImage],
       stock: item?.disabled ? 'Out of stock' : 'In stock',
       price: Number(item?.standard_rate ?? 0) || Number(sellingPrice ?? 0),
-      prevprice: 0,
+      prevprice: Number((item as any)?.custom_mrp) || Number((websiteItem as any)?.custom_mrp) || Number((item as any)?.mrp) || 0,
+      mrp: Number((item as any)?.custom_mrp) || Number((websiteItem as any)?.custom_mrp) || Number((item as any)?.mrp) || 0,
+      pack_size: (item as any)?.custom_pack_size_ || (websiteItem as any)?.custom_pack_size_ || '',
+      shelf_life_in_days: Number((item as any)?.shelf_life_in_days ?? (websiteItem as any)?.shelf_life_in_days ?? 0),
       rating: {
         rate: 0,
         count: 0
       }
     };
+  }
+
+  getVariantLabel(item: ItemRecord): string {
+    if (item.custom_pack_size_) {
+      return item.custom_pack_size_;
+    }
+    const name = item.item_name || item.item_code || item.name || '';
+    if (name.includes('-')) {
+      const parts = name.split('-');
+      return parts[parts.length - 1].trim();
+    }
+    return name;
+  }
+
+  onVariantSelect(variantData: {item: ItemRecord, sellingPrice: number}) {
+    this.selectedVariant = variantData;
+    const { item, sellingPrice } = variantData;
+    
+    // Default the URL in the address bar without triggering a reload
+    this.location.replaceState('/categories/product/' + encodeURIComponent(item.name));
+    
+    // Optimistic instant update using merged data
+    if (this.currentWebsiteItem) {
+      const mergedWebsiteItem = {
+        ...this.currentWebsiteItem,
+        web_item_name: item.item_name || item.name || this.currentWebsiteItem.web_item_name,
+        item_name: item.item_name || item.name || this.currentWebsiteItem.item_name,
+        item_code: item.item_code || item.name || this.currentWebsiteItem.item_code,
+        name: item.name,
+        description: item.description || this.currentWebsiteItem.description,
+        web_long_description: item.description || this.currentWebsiteItem.web_long_description,
+      };
+
+      delete mergedWebsiteItem.website_specifications;
+      delete mergedWebsiteItem.specifications;
+      delete mergedWebsiteItem.attributes;
+
+      this.product = this.toErpProduct(mergedWebsiteItem, item, sellingPrice);
+      this.images = this.product.images;
+      this.imageSrc = this.images[0] || this.fallbackImage;
+      this.category = this.product.category;
+      this.title = this.product.title;
+      this.detailRows = this.buildDetailRows(mergedWebsiteItem, item);
+      this.erpUom = this.resolveErpUom(mergedWebsiteItem, item);
+      this.erpOffers = this.extractErpOffers(mergedWebsiteItem, item);
+      this.erpLongDescription = this.resolveErpLongDescription(mergedWebsiteItem, item);
+      this.erpReviews = this.extractErpReviews(mergedWebsiteItem, item, this.currentReviews);
+      this.setErpReviewStats(this.erpReviews);
+    } else {
+      // Fallback optimistic update
+      this.product.price = Number(item?.standard_rate ?? 0) || Number(sellingPrice ?? 0);
+      this.product.mrp = Number((item as any)?.custom_mrp) || Number((item as any)?.mrp) || 0;
+      this.product.pack_size = (item as any)?.custom_pack_size_ || '';
+      this.product.stock = item?.disabled ? 'Out of stock' : 'In stock';
+      this.product.item_code = item?.item_code || item?.name;
+      this.product.type = item?.item_code || item?.name || this.product.type;
+      this.product.title = item?.item_name || item?.name || this.product.title;
+      this.product.shelf_life_in_days = Number((item as any)?.shelf_life_in_days ?? 0);
+      this.title = this.product.title;
+      
+      const newImages = [item?.image, item?.website_image, item?.thumbnail]
+        .filter((value): value is string => Boolean(value))
+        .map((value) => this.resolveImageUrl(value));
+        
+      if (newImages.length > 0) {
+        this.product.images = newImages;
+        this.images = newImages;
+        this.imageSrc = this.images[0];
+      }
+    }
+
+    // Try to fetch the exact Website Item for this variant in the background
+    // to achieve PERFECT consistency with direct navigation!
+    this.websiteItemService.resolveWebsiteItem(item.name).subscribe({
+      next: (websiteItem) => {
+        if (websiteItem) {
+          if (websiteItem.route) {
+            this.location.replaceState('/categories/product/' + websiteItem.route);
+          }
+          
+          // Re-sync EVERYTHING with the exact fetched variant Website Item
+          this.currentWebsiteItem = websiteItem;
+          this.product = this.toErpProduct(websiteItem, item, sellingPrice);
+          this.images = this.product.images;
+          this.imageSrc = this.images[0] || this.fallbackImage;
+          this.category = this.product.category;
+          this.title = this.product.title;
+          this.detailRows = this.buildDetailRows(websiteItem, item);
+          this.erpUom = this.resolveErpUom(websiteItem, item);
+          this.erpOffers = this.extractErpOffers(websiteItem, item);
+          this.erpLongDescription = this.resolveErpLongDescription(websiteItem, item);
+          
+          // Sync reviews for this specific variant
+          this.websiteItemService.getWebsiteItemReviews(websiteItem).subscribe(reviews => {
+            this.currentReviews = reviews as any[];
+            this.erpReviews = this.extractErpReviews(websiteItem, item, reviews as any[]);
+            this.setErpReviewStats(this.erpReviews);
+          });
+        }
+      },
+      error: () => {
+        // If it's not a published Website Item, the optimistic update is the best we can do.
+      }
+    });
   }
 
   private buildDetailRows(websiteItem: WebsiteItem, item: ItemRecord | null): DetailRow[] {
@@ -229,7 +358,7 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
     const rows: DetailRow[] = [
       { label: 'To Be Consumed', value: this.resolveShelfLife(websiteItem, item) || 'Not specified' },
       { label: 'Color', value: this.findFirstString(websiteItem, item, ['color', 'item_color', 'colour']) || 'Not specified' },
-      { label: 'Packing', value: this.findFirstString(websiteItem, item, ['packing', 'pack_size', 'package', 'package_type']) || 'Not specified' },
+      { label: 'Packing', value: this.findFirstString(websiteItem, item, ['packing', 'pack_size', 'custom_pack_size_', 'package', 'package_type']) || 'Not specified' },
       { label: 'Brand', value: this.findFirstString(websiteItem, item, ['brand']) || 'Not specified' },
       { label: 'UOM', value: this.resolveErpUom(websiteItem, item) || 'Nos' }
     ];
@@ -662,7 +791,7 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
     this.cartService.remove(product);
   }
   isProductInCart(product:Product){
-    return this.cart.some(item => this.getCartKey(item) === this.getCartKey(product));
+    return this.cart.some((item: Product) => this.getCartKey(item) === this.getCartKey(product));
   }
 
   private getCartKey(product: Product): string {

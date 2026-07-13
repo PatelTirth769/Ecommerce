@@ -22,8 +22,16 @@
             </a>
             
             <!-- Item Code -->
-            <p class="text-xs text-gray-500 mb-2" *ngIf="product.item_code">
+            <p class="text-xs text-gray-500 mb-1" *ngIf="product.item_code">
                 Code: <span class="font-mono">{{product.item_code}}</span>
+            </p>
+            
+            <p class="text-xs text-gray-500 mb-1" *ngIf="product.pack_size">
+                Pack Size: <span class="font-semibold">{{product.pack_size}}</span>
+            </p>
+
+            <p class="text-xs text-gray-500 mb-2" *ngIf="product.shelf_life_in_days && product.shelf_life_in_days > 0">
+                <span class="block">Total Shelf Life: <span class="font-semibold">{{product.shelf_life_in_days}} Days</span></span>
             </p>
             
             <p class="text-sm text-gray-700 dark:text-gray-400 mb-2">

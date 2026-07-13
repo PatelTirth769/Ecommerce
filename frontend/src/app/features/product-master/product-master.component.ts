@@ -4,12 +4,18 @@ import { ItemRecord, WebsiteItem, WebsiteItemService } from '../../core/services
 import { Router } from '@angular/router';
 import { CartService } from '../../core/services/cart.service';
 import { Product } from 'src/app/modules/product/model';
-import { Subscription, catchError, forkJoin, map, of } from 'rxjs';
+import { Subscription, catchError, forkJoin, map, of, switchMap } from 'rxjs';
 
 interface ProductMasterItem extends WebsiteItem {
   erpPrice: number;
   erpUom: string;
   isOutOfStock: boolean;
+  erpMrp?: number;
+  erpPackSize?: string;
+  erpShelfLifeInDays?: number;
+  erpRemainingShelfLifeInDays?: number;
+  erpVariantOf?: string;
+  item_group?: string;
 }
 
 @Component({
@@ -55,7 +61,7 @@ export class ProductMasterComponent implements OnInit, OnDestroy {
           data.map((websiteItem) => {
             const itemCode = websiteItem.item_code || websiteItem.item_name || websiteItem.name;
             return forkJoin({
-              item: this.websiteItemService.getItem(itemCode).pipe(catchError(() => of(null as ItemRecord | null))),
+              item: this.websiteItemService.getItem(itemCode).pipe(catchError(() => of(null as any))),
               sellingPrice: this.websiteItemService.getItemSellingPrice(itemCode, websiteItem.item_name).pipe(catchError(() => of(0)))
             }).pipe(
               map(({ item, sellingPrice }) => this.toProductMasterItem(websiteItem, item, sellingPrice)),
@@ -64,7 +70,61 @@ export class ProductMasterComponent implements OnInit, OnDestroy {
           })
         ).subscribe({
           next: (enrichedItems) => {
-            this.items = enrichedItems;
+            // Group variants by template to override generic template prices
+            const variantsByTemplate = new Map<string, ProductMasterItem[]>();
+            
+            enrichedItems.forEach(v => {
+              let templateCode = v.erpVariantOf || (v as any).variant_of;
+              
+              if (!templateCode && v.item_code) {
+                const variantItemCode = v.item_code;
+                const template = enrichedItems.find(t => 
+                  t.item_code && 
+                  variantItemCode !== t.item_code && 
+                  variantItemCode.startsWith(t.item_code + '-')
+                );
+                if (template) {
+                  templateCode = template.item_code;
+                }
+              }
+
+              if (templateCode) {
+                if (!variantsByTemplate.has(templateCode)) {
+                  variantsByTemplate.set(templateCode, []);
+                }
+                variantsByTemplate.get(templateCode)!.push(v);
+              }
+            });
+
+            // Patch template products with real data from their variants
+            enrichedItems.forEach(p => {
+              if (p.item_code && variantsByTemplate.has(p.item_code)) {
+                const variants = variantsByTemplate.get(p.item_code)!;
+                if (variants.length > 0) {
+                  variants.sort((a, b) => (a.erpPrice || 0) - (b.erpPrice || 0));
+                  const firstVariant = variants.find(v => v.erpPrice > 0) || variants[0];
+                  
+                  p.erpPrice = firstVariant.erpPrice;
+                  p.erpMrp = firstVariant.erpMrp;
+                  p.erpPackSize = firstVariant.erpPackSize;
+                }
+              }
+            });
+
+            // Hide variants from the catalog if their template is already present to prevent duplicates
+            const variantsToHide = new Set<string>();
+
+            enrichedItems.forEach(v => {
+              if (v.item_code && variantsByTemplate.has(v.item_code)) {
+                // This 'v' is a template. We want to hide all its variants.
+                const variants = variantsByTemplate.get(v.item_code)!;
+                variants.forEach(variant => {
+                  variantsToHide.add(variant.item_code || variant.name);
+                });
+              }
+            });
+
+            this.items = enrichedItems.filter(item => !variantsToHide.has(item.item_code || item.name));
             this.isLoading = false;
           },
           error: () => {
@@ -86,17 +146,41 @@ export class ProductMasterComponent implements OnInit, OnDestroy {
     });
   }
 
-  private toProductMasterItem(websiteItem: WebsiteItem, item: ItemRecord | null, sellingPrice: number): ProductMasterItem {
+  private toProductMasterItem(websiteItem: any, item: any | null, sellingPrice: number): ProductMasterItem {
     return {
       ...websiteItem,
       erpPrice: Number(item?.standard_rate ?? 0) || Number(sellingPrice ?? 0),
+      erpMrp: Number((item as any)?.custom_mrp) || Number((websiteItem as any)?.custom_mrp) || Number((item as any)?.mrp) || 0,
+      erpPackSize: (item as any)?.custom_pack_size_ || (websiteItem as any)?.custom_pack_size_ || '',
+      erpShelfLifeInDays: Number((item as any)?.shelf_life_in_days ?? (websiteItem as any)?.shelf_life_in_days ?? 0),
+      erpRemainingShelfLifeInDays: this.calculateRemainingShelfLife(item),
       erpUom: item?.stock_uom || 'Nos',
-      isOutOfStock: Boolean(item?.disabled)
+      isOutOfStock: Boolean(item?.disabled),
+      erpVariantOf: (item as any)?.variant_of || ''
     };
   }
 
   getPrice(item: ProductMasterItem): number {
-    return Number(item.erpPrice ?? 0);
+    return item.erpPrice || 0;
+  }
+
+  getMrp(item: ProductMasterItem): number {
+    return item.erpMrp || 0;
+  }
+
+  private calculateRemainingShelfLife(item: any): number {
+    const shelfLife = Number(item?.shelf_life_in_days ?? 0);
+    if (!shelfLife || shelfLife <= 0 || !item?.creation) {
+      return shelfLife;
+    }
+    
+    const creationDate = new Date(item.creation);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - creationDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    const remaining = shelfLife - diffDays;
+    return remaining > 0 ? remaining : 0;
   }
 
   getUom(item: ProductMasterItem): string {
@@ -113,6 +197,10 @@ export class ProductMasterComponent implements OnInit, OnDestroy {
 
   getImage(item: ProductMasterItem): string {
     return this.websiteItemService.resolveImageUrl(item.website_image || item.thumbnail || '');
+  }
+
+  getItemCode(item: ProductMasterItem): string {
+    return item.name;
   }
 
   onImageError(event: any): void {
@@ -137,23 +225,24 @@ export class ProductMasterComponent implements OnInit, OnDestroy {
   }
 
   private toCartProduct(item: ProductMasterItem): Product {
-    return {
+    const productForCart: Product = {
       id: 0,
-      title: this.getDisplayName(item),
+      title: item.web_item_name || item.item_name || item.name,
       description: item.description || '',
-      category: 'ERPNext Item',
-      type: item.item_code || item.item_name || item.name,
-      sizes: [],
+      category: item.item_group || 'Product',
+      type: item.item_code || item.name,
+      item_code: item.item_code || item.name,
       images: [this.getImage(item)],
-      stock: this.isOutOfStock(item) ? 'Out of stock' : 'In stock',
+      stock: item.isOutOfStock ? 'Out of stock' : 'In stock',
       price: this.getPrice(item),
-      prevprice: 0,
-      item_code: item.item_code || item.item_name || item.name,
-      rating: {
-        rate: 0,
-        count: 0
-      }
+      prevprice: this.getMrp(item),
+      mrp: this.getMrp(item),
+      pack_size: item.erpPackSize,
+      shelf_life_in_days: item.erpShelfLifeInDays,
+      qty: 1,
+      rating: { rate: 0, count: 0 }
     };
+    return productForCart;
   }
 
   private getItemCartKey(item: ProductMasterItem): string {

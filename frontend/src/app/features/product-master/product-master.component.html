@@ -67,25 +67,44 @@
             </h5>
 
             <!-- Product Code/ID -->
-            <p class="text-[10px] text-gray-500 mb-2">
+            <p class="text-[10px] text-gray-500 mb-1">
               Code: <span class="font-mono">{{ item.name }}</span>
             </p>
 
-            <!-- Description if available -->
-            <p class="text-xs text-gray-400 line-clamp-2 mb-3 h-8" *ngIf="item.description" [innerHTML]="item.description">
+            <!-- Pack Size -->
+            <p class="text-[10px] text-gray-500 mb-1" *ngIf="item.erpPackSize">
+              Pack Size: <span class="font-semibold">{{ item.erpPackSize }}</span>
             </p>
 
-            <div class="mt-auto">
-              <p class="text-base font-black text-gray-900 mb-3" *ngIf="getPrice(item) > 0">
+            <!-- Shelf Life -->
+            <p class="text-[10px] text-gray-500 mb-2" *ngIf="item.erpShelfLifeInDays && item.erpShelfLifeInDays > 0">
+              <span class="block">Total Shelf Life: <span class="font-semibold">{{ item.erpShelfLifeInDays }} Days</span></span>
+              <span class="block text-green-700" *ngIf="item.erpRemainingShelfLifeInDays !== undefined && item.erpRemainingShelfLifeInDays > 0">
+                Remaining: <span class="font-semibold">{{ item.erpRemainingShelfLifeInDays }} Days</span>
+              </span>
+              <span class="block text-red-600" *ngIf="item.erpRemainingShelfLifeInDays === 0">
+                Expired
+              </span>
+            </p>
+
+            <!-- Description if available -->
+            <p class="text-xs text-gray-400 line-clamp-2 mb-3" *ngIf="item.description" [innerHTML]="item.description">
+            </p>
+
+            <div class="mb-3">
+              <p class="text-base font-black text-gray-900 mb-1" *ngIf="getPrice(item) > 0">
                 &#8377; {{ getPrice(item) | number:'1.2-2' }}
+                <span class="line-through text-xs ml-2 text-gray-500 font-normal" *ngIf="getMrp(item) > 0">&#8377;{{getMrp(item) | number:'1.2-2'}}</span>
                 <span class="text-[10px] text-gray-400 font-normal"> / {{ getUom(item) }}</span>
               </p>
 
               <!-- Modified Date -->
-              <p class="text-[10px] text-gray-400 mb-4 flex items-center">
+              <p class="text-[10px] text-gray-400 flex items-center">
                 <i class="fa-regular fa-clock mr-1"></i>{{ item.modified | date: 'short' }}
               </p>
+            </div>
 
+            <div class="mt-auto">
               <button
                 *ngIf="isItemInCart(item); else addtocart"
                 class="px-4 py-2 bg-red-50 text-red-600 font-bold text-xs w-full rounded-lg hover:bg-red-600 hover:text-white transition-all flex items-center justify-center gap-2"

@@ -53,11 +53,38 @@
               <span class="text-gray-400"> | </span>
               <span>Item Code: {{product.type}}</span>
             </p>
+            <!-- Variant Selector -->
+            <div class="mb-4" *ngIf="variants.length > 0">
+              <p class="text-base md:text-lg text-gray-700 font-semibold mb-2">Pack Size</p>
+              <div class="flex flex-wrap gap-2">
+                <button *ngFor="let variant of variants"
+                  (click)="variant.item.published_in_website ? onVariantSelect(variant) : null"
+                  [disabled]="!variant.item.published_in_website"
+                  [ngClass]="{
+                    'border-red-600 bg-red-50 text-red-700 ring-1 ring-red-600': selectedVariant?.item?.name === variant.item.name && variant.item.published_in_website, 
+                    'border-gray-300 text-gray-700 hover:border-gray-400': selectedVariant?.item?.name !== variant.item.name && variant.item.published_in_website,
+                    'border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed opacity-50': !variant.item.published_in_website
+                  }"
+                  class="px-4 py-2 border rounded-md font-medium transition-colors focus:outline-none">
+                  {{ getVariantLabel(variant.item) }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Single Item Pack Size (when no variants) -->
+            <p class="text-base md:text-lg text-gray-700 mb-1 break-words" *ngIf="variants.length === 0 && product.pack_size">
+              Pack Size: <span class="font-semibold">{{ product.pack_size }}</span>
+            </p>
+            <p class="text-base md:text-lg text-gray-700 mb-4 break-words" *ngIf="product.shelf_life_in_days && product.shelf_life_in_days > 0">
+              Shelf Life: <span class="font-semibold">{{ product.shelf_life_in_days }} Days</span>
+            </p>
+
             <p class="text-3xl md:text-4xl font-semibold text-gray-900 mb-4" *ngIf="product.price > 0">
               &#8377; {{ product.price | number:'1.2-2' }}
-              <span class="text-gray-500 text-2xl md:text-3xl">(&#8377; {{ product.price | number:'1.2-2' }} / {{ erpUom || 'Nos' }})</span>
+              <span class="line-through text-gray-500 text-2xl md:text-3xl ml-2" *ngIf="product.mrp && product.mrp > 0">&#8377; {{ product.mrp | number:'1.2-2' }}</span>
+              <span class="text-gray-500 text-xl md:text-2xl font-normal ml-2">/ {{ erpUom || 'Nos' }}</span>
             </p>
-            <p class="text-2xl md:text-3xl font-medium text-gray-800 mb-4">UOM : {{erpUom}}</p>
+            <p class="text-xl md:text-2xl font-medium text-gray-800 mb-4">UOM : {{erpUom}}</p>
           </div>
           <button class="shrink-0 h-10 w-10 rounded-full border border-gray-200 text-red-400 hover:bg-red-50 transition-colors" title="Wishlist">
             <i class="fa-regular fa-heart"></i>

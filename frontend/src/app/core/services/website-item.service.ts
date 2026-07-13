@@ -35,6 +35,11 @@ export interface ItemRecord {
   variant_of?: string;
   published?: number;
   modified?: string;
+  creation?: string;
+  custom_pack_size_?: string;
+  custom_mrp?: number;
+  shelf_life_in_days?: number;
+  published_in_website?: number;
 }
 
 interface WebsiteItemListResponse {
@@ -103,14 +108,16 @@ export class WebsiteItemService {
     'brand',
     'description',
     'image',
-    'website_image',
-    'thumbnail',
     'standard_rate',
     'disabled',
     'has_variants',
     'variant_of',
-    'published',
-    'modified'
+    'modified',
+    'creation',
+    'custom_mrp',
+    'custom_pack_size_',
+    'shelf_life_in_days',
+    'published_in_website'
   ]);
 
   // REPLACE THESE WITH YOUR ACTUAL ADMIN KEYS FROM ERPNEXT
@@ -202,6 +209,36 @@ export class WebsiteItemService {
       .pipe(map((response) => response?.data || []));
   }
 
+  getItemVariants(templateCode: string): Observable<ItemRecord[]> {
+    const params = new HttpParams()
+      .set('fields', this.itemFields)
+      .set('filters', JSON.stringify([['Item', 'variant_of', '=', templateCode]]))
+      .set('limit_page_length', '100');
+
+    return this.http
+      .get<{data: ItemRecord[]}>(this.itemEndpoint, {
+        params,
+        headers: this.authHeaders,
+      })
+      .pipe(map((response) => response?.data || []));
+  }
+
+  getVariantsWithPrices(templateCode: string): Observable<{item: ItemRecord, sellingPrice: number}[]> {
+    return this.getItemVariants(templateCode).pipe(
+      switchMap(variants => {
+        if (!variants.length) return of([]);
+        return forkJoin(
+          variants.map(variant => 
+            forkJoin({
+              item: of(variant),
+              sellingPrice: this.getItemSellingPrice(variant.item_code || variant.name, variant.item_name).pipe(catchError(() => of(0)))
+            })
+          )
+        );
+      })
+    );
+  }
+
   getWebsiteItem(name: string): Observable<WebsiteItem> {
     const cleanName = this.stripVersionSuffix(name);
     return this.http
@@ -230,33 +267,34 @@ export class WebsiteItemService {
 
   resolveWebsiteItem(identifier: string): Observable<WebsiteItem> {
     const cleanIdentifier = this.stripVersionSuffix(identifier);
-    const normalizedIdentifier = this.normalizeLookupValue(cleanIdentifier);
 
-    return this.getWebsiteItem(cleanIdentifier).pipe(
-      catchError(() => this.getWebsiteItemByRoute(cleanIdentifier)),
-      catchError(() => this.getWebsiteItemByAnyIdentifier(normalizedIdentifier)),
-      switchMap((item) => {
-        if (!item) {
+    // We use the list API with or_filters to silently search for the item
+    // without triggering a 404 Not Found error in the console if it doesn't exist.
+    const params = new HttpParams()
+      .set('fields', '["name"]')
+      .set('or_filters', JSON.stringify([
+        ['Website Item', 'route', '=', cleanIdentifier],
+        ['Website Item', 'route', '=', cleanIdentifier.startsWith('/') ? cleanIdentifier.substring(1) : cleanIdentifier],
+        ['Website Item', 'name', '=', cleanIdentifier],
+        ['Website Item', 'item_code', '=', cleanIdentifier],
+        ['Website Item', 'item_name', '=', cleanIdentifier],
+        ['Website Item', 'web_item_name', '=', cleanIdentifier]
+      ]))
+      .set('limit_page_length', '1');
+
+    return this.http.get<WebsiteItemListResponse>(this.endpoint, {
+      params,
+      headers: this.authHeaders
+    }).pipe(
+      switchMap(response => {
+        const item = response?.data?.[0];
+        if (!item || !item.name) {
           throw new Error(`Website Item not found for ${identifier}`);
         }
-
-        // Always re-fetch by name to get full Website Item document including custom fields.
-        return this.getWebsiteItem(item.name).pipe(catchError(() => of(item)));
+        // Since we know the exact Document name (e.g. WEB-ITM-0030) and that it exists,
+        // this will fetch the full document (including specifications) without 404ing!
+        return this.getWebsiteItem(item.name);
       })
-    );
-  }
-
-  private getWebsiteItemByAnyIdentifier(identifier: string): Observable<WebsiteItem | undefined> {
-    return this.getWebsiteItems(1000).pipe(
-      map((items) => items.find((item) => {
-        const route = item.route ? this.normalizeLookupValue(item.route) : '';
-        const name = this.normalizeLookupValue(item.name || '');
-        const itemCode = this.normalizeLookupValue(item.item_code || '');
-        const itemName = this.normalizeLookupValue(item.item_name || '');
-        const webItemName = this.normalizeLookupValue(item.web_item_name || '');
-
-        return [route, name, itemCode, itemName, webItemName].includes(identifier);
-      }))
     );
   }
 
