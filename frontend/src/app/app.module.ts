@@ -18,8 +18,6 @@ import { SearchComponent } from './core/layout/components/header/search/search.c
 import { AuthinterceptorService } from './shared/services/auth/authinterceptor.service';
 import { SharedModule } from './shared/shared.module';
 import { ProductMasterComponent } from './features/product-master/product-master.component';
-import { SellerScreenComponent } from './features/seller-screen/seller-screen.component';
-import { SellerRegistrationComponent } from './features/seller-registration/seller-registration.component';
 import { BuyerProfileComponent } from './features/buyer-profile/buyer-profile.component';
 import { environment } from '../environments/environment';
 import { AngularFireModule } from '@angular/fire/compat';
@@ -27,6 +25,7 @@ import { AngularFireAuthModule } from '@angular/fire/compat/auth';
 import { AngularFirestoreModule } from '@angular/fire/compat/firestore';
 import { WishlistComponent } from './features/wishlist/wishlist.component';
 import { ProductModule } from './modules/product/product.module';
+import { ComingSoonComponent } from './features/coming-soon/coming-soon.component';
 
 @NgModule({
   declarations: [
@@ -43,10 +42,9 @@ import { ProductModule } from './modules/product/product.module';
     SearchresultComponent,
     SearchComponent,
     ProductMasterComponent,
-    SellerScreenComponent,
-    SellerRegistrationComponent,
     BuyerProfileComponent,
-    WishlistComponent
+    WishlistComponent,
+    ComingSoonComponent
   ],
   imports: [
     BrowserModule,

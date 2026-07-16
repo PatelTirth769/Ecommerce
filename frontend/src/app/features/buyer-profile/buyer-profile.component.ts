@@ -101,18 +101,7 @@ export class BuyerProfileComponent implements OnInit {
           send_welcome_email: user.send_welcome_email === 1 || user.send_welcome_email === true
         });
 
-        if (user.module_profile === 'seller') {
-          this.authService.getSellerFirebaseProfile(user.email).subscribe(fbProfile => {
-            if (fbProfile) {
-              this.businessForm.patchValue(fbProfile);
-              
-              // Override basic info if it exists in Firebase
-              this.basicInfoForm.patchValue(fbProfile);
-            }
-            this.businessForm.patchValue({ email: user.email });
-            this.basicInfoForm.patchValue({ email: user.email });
-          });
-        }
+
       }
     });
   }
@@ -135,42 +124,8 @@ export class BuyerProfileComponent implements OnInit {
   }
 
   saveBusinessDetails(): void {
-    if (this.businessForm.invalid) {
-      this.businessForm.markAllAsTouched();
-      return;
-    }
-
-    this.isSavingBusiness = true;
-    this.businessSaveSuccess = false;
-    this.businessSaveError = '';
-
-    const payload = this.businessForm.getRawValue();
-
-    // Ensure email is always present in payload
-    if (!payload.email) {
-      this.authService.user$.subscribe(u => {
-        if (u && u.email) payload.email = u.email;
-      }).unsubscribe();
-    }
-
-    if (!payload.email) {
-      this.businessSaveError = 'Could not find your email. Please reload the page.';
-      this.isSavingBusiness = false;
-      return;
-    }
-
-    this.authService.updateSellerFirebaseProfile(payload).subscribe({
-      next: (res) => {
-        this.isSavingBusiness = false;
-        this.businessSaveSuccess = true;
-        setTimeout(() => this.businessSaveSuccess = false, 3000);
-      },
-      error: (err) => {
-        console.error('Failed to save business details', err);
-        this.isSavingBusiness = false;
-        this.businessSaveError = 'Failed to save details. Please try again.';
-      }
-    });
+    // Seller profile saving has been removed
+    this.businessSaveError = 'Business details saving is disabled for buyers.';
   }
 
   saveBasicInfo(): void {
@@ -198,27 +153,14 @@ export class BuyerProfileComponent implements OnInit {
       return;
     }
 
-    const saveToFirebase = () => {
-      this.authService.updateSellerFirebaseProfile(payload).subscribe({
-        next: (res) => {
+    // If password was changed, update in ERPNext
+    if (payload.password) {
+      this.authService.updateERPNextUser(payload.email, { new_password: payload.password }).subscribe({
+        next: () => {
           this.isSavingBasicInfo = false;
           this.basicInfoSaveSuccess = true;
           this.basicInfoForm.patchValue({ password: '', confirm_password: '' }); // Clear passwords after save
           setTimeout(() => this.basicInfoSaveSuccess = false, 3000);
-        },
-        error: (err) => {
-          console.error('Failed to save basic info to Firebase', err);
-          this.isSavingBasicInfo = false;
-          this.basicInfoSaveError = 'Failed to save info. Please try again.';
-        }
-      });
-    };
-
-    // If password was changed, update in ERPNext first
-    if (payload.password) {
-      this.authService.updateERPNextUser(payload.email, { new_password: payload.password }).subscribe({
-        next: () => {
-          saveToFirebase();
         },
         error: (err) => {
           console.error('Failed to update ERPNext password', err);
@@ -227,7 +169,9 @@ export class BuyerProfileComponent implements OnInit {
         }
       });
     } else {
-      saveToFirebase();
+      this.isSavingBasicInfo = false;
+      this.basicInfoSaveSuccess = true;
+      setTimeout(() => this.basicInfoSaveSuccess = false, 3000);
     }
   }
 }

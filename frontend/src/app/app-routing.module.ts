@@ -9,15 +9,15 @@ import { CheckoutComponent } from './modules/product/components/checkout/checkou
 import { canActivate } from './shared/services/auth/authguard.service';
 import { SearchresultComponent } from './features/searchresult/searchresult.component';
 import { ProductMasterComponent } from './features/product-master/product-master.component';
-import { SellerScreenComponent } from './features/seller-screen/seller-screen.component';
-import { SellerRegistrationComponent } from './features/seller-registration/seller-registration.component';
 import { BuyerProfileComponent } from './features/buyer-profile/buyer-profile.component';
 import { WishlistComponent } from './features/wishlist/wishlist.component';
+import { ComingSoonComponent } from './features/coming-soon/coming-soon.component';
 
 const routes: Routes = [
   {
     path:'',
-    component:HomeComponent
+    component:HomeComponent,
+    canActivate:[canActivate]
   },
   {
     path:'login',
@@ -31,7 +31,8 @@ const routes: Routes = [
   },
   {
     path:'products',
-    component:SearchresultComponent
+    component:SearchresultComponent,
+    canActivate:[canActivate]
   },
   {
     path:'product-master',
@@ -39,12 +40,25 @@ const routes: Routes = [
     canActivate:[canActivate]
   },
   {
+    path:'store-list',
+    component:ComingSoonComponent,
+    canActivate:[canActivate]
+  },
+  {
     path:'categories',
-    loadChildren:()=>import('./modules/product/product.module').then(m=>m.ProductModule)
+    pathMatch: 'full',
+    component:ComingSoonComponent,
+    canActivate:[canActivate]
+  },
+  {
+    path:'categories',
+    loadChildren:()=>import('./modules/product/product.module').then(m=>m.ProductModule),
+    canActivate:[canActivate]
   },
   {
     path:'shopping-cart',
-    component:CartComponent
+    component:CartComponent,
+    canActivate:[canActivate]
   },
   {
     path:'checkout',
@@ -52,16 +66,9 @@ const routes: Routes = [
     canActivate:[canActivate],
   },
   {
-    path: 'seller-screen',
-    component: SellerScreenComponent
-  },
-  {
-    path: 'register-seller',
-    component: SellerRegistrationComponent
-  },
-  {
     path: 'profile',
-    component: BuyerProfileComponent
+    component: BuyerProfileComponent,
+    canActivate:[canActivate]
   },
   {
     path: 'wishlist',

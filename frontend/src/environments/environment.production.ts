@@ -1,8 +1,7 @@
 export const environment = {
   production: true,
-  nodeBackendUrl: 'https://your-live-backend.com', // Change this before deploying
+  nodeBackendUrl: 'https://sales24x7.in',//change this url when deploy in Prod
   erpBaseUrl: 'https://ketty.hrhovercraft.in', // Your Live ERP URL
-  sellerApiDomain: 'https://your-live-backend.com/api', // Change this before deploying
   baseAPIURL: 'https://ketty.hrhovercraft.in/',
   fileBaseURL: 'https://ketty.hrhovercraft.in/',
   loginEndpoint: 'api/method/login',

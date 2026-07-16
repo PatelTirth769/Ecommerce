@@ -1,24 +1,26 @@
 
 <header class="sticky top-0 z-[100] w-full transition-all duration-300 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border-b border-gray-100 dark:border-gray-800 shadow-sm">
   <nav class="container mx-auto px-4 md:px-6 lg:px-8 py-2">
-    <div class="flex justify-between items-center">
-        <!-- Logo Area -->
-        <a routerLink="/" class="group flex items-center gap-2 cursor-pointer">
-          <div class="relative">
-            <img src="assets/images/logo.png" alt="brand" class="w-8 md:w-9 transform group-hover:scale-105 transition-transform duration-300" />
-            <div class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full"></div>
-          </div>
-          <div class="flex flex-col">
-            <span class="text-lg font-black tracking-tighter text-gray-900 dark:text-white leading-none">
-              Sale<span class="text-blue-600">24x7</span>
-            </span>
-            <span class="text-[8px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">Premium Shop</span>
-          </div>
-        </a>
+    <div class="flex items-center w-full">
+        <!-- Logo Area (Left) -->
+        <div class="flex-1 flex items-center justify-start">
+          <a routerLink="/" class="group flex items-center gap-2 cursor-pointer">
+            <div class="relative">
+              <img src="assets/images/logo.png" alt="brand" class="w-8 md:w-9 transform group-hover:scale-105 transition-transform duration-300" />
+              <div class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full"></div>
+            </div>
+            <div class="flex flex-col">
+              <span class="text-lg font-black tracking-tighter text-gray-900 dark:text-white leading-none">
+                Sale<span class="text-blue-600">24x7</span>
+              </span>
+              <span class="text-[8px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">Premium Shop</span>
+            </div>
+          </a>
+        </div>
       
-        <!-- Desktop Navigation -->
-        <div class="hidden md:flex items-center gap-1">
-          <ul class="flex items-center gap-4 mr-4 border-r border-gray-200 dark:border-gray-700 pr-4">
+        <!-- Desktop Navigation (Center) -->
+        <div class="hidden md:flex flex-shrink-0 items-center justify-center px-4">
+          <ul class="flex items-center gap-6">
             <li *ngFor="let menu of menulist">
               <a
                 [routerLink]="[menu.path]"
@@ -30,8 +32,12 @@
               </a>
             </li>
           </ul>
+        </div>
 
-          <div class="flex items-center gap-1.5">
+        <!-- Desktop & Mobile Right Actions (Right) -->
+        <div class="flex-1 flex items-center justify-end gap-1.5">
+          <!-- Desktop Icons -->
+          <div class="hidden md:flex items-center gap-1.5">
             <a [routerLink]="['/wishlist']" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 hover:text-blue-600 transition-all duration-200 relative group">
               <i class="fa-regular fa-heart text-lg"></i>
             </a>
@@ -44,10 +50,6 @@
             </a>
 
             <div class="h-6 w-[1px] bg-gray-200 dark:bg-gray-700 mx-1.5"></div>
-
-            <a [routerLink]="['/seller-screen']" class="px-4 py-1.5 border-2 border-blue-600 text-blue-600 dark:text-blue-400 text-xs font-bold rounded-lg hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white transition-all duration-300">
-                Seller
-            </a>
 
             <ng-container *ngIf="!(authService.isLoggedIn$ | async)">
               <a [routerLink]="['/login']" class="px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-bold rounded-lg hover:bg-blue-600 dark:hover:bg-blue-500 dark:hover:text-white transition-all duration-300 shadow-sm">
@@ -64,12 +66,12 @@
               </button>
             </ng-container>
           </div>
-        </div>
 
-        <!-- Mobile Menu Toggle -->
-        <button class="md:hidden p-1.5 text-gray-600 dark:text-gray-400 hover:text-blue-600 transition-colors" (click)="openMenu()">
-          <i class="fa-solid fa-bars-staggered text-xl"></i>
-        </button>
+          <!-- Mobile Menu Toggle -->
+          <button class="md:hidden p-1.5 text-gray-600 dark:text-gray-400 hover:text-blue-600 transition-colors" (click)="openMenu()">
+            <i class="fa-solid fa-bars-staggered text-xl"></i>
+          </button>
+        </div>
     </div>
 
     <!-- Search Bar (Integrated) -->

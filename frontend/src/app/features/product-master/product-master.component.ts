@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ItemRecord, WebsiteItem, WebsiteItemService } from '../../core/services/website-item.service';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { CartService } from '../../core/services/cart.service';
 import { Product } from 'src/app/modules/product/model';
 import { Subscription, catchError, forkJoin, map, of, switchMap } from 'rxjs';
@@ -23,20 +23,26 @@ interface ProductMasterItem extends WebsiteItem {
   templateUrl: './product-master.component.html'
 })
 export class ProductMasterComponent implements OnInit, OnDestroy {
+  allItems: ProductMasterItem[] = [];
   items: ProductMasterItem[] = [];
   cart: Product[] = [];
   isLoading = false;
   errorMessage = '';
+  currentQuery = '';
   private fallbackImage = 'assets/images/logo.png';
   private cartSub!: Subscription;
 
-  constructor(private websiteItemService: WebsiteItemService, private router: Router, private cartService: CartService) {}
+  constructor(private websiteItemService: WebsiteItemService, private router: Router, private route: ActivatedRoute, private cartService: CartService) {}
 
   ngOnInit(): void {
     // Subscribe to cart changes so UI updates instantly on add/remove
     this.cartSub = this.cartService.cart$.subscribe(cartItems => {
       console.log('[ProductMaster] cart$ received', cartItems.length, 'items');
       this.cart = cartItems;
+    });
+    this.route.queryParams.subscribe(params => {
+      this.currentQuery = (params['q'] || '').toLowerCase().trim();
+      this.applyFilter();
     });
     this.loadItems();
   }
@@ -124,11 +130,13 @@ export class ProductMasterComponent implements OnInit, OnDestroy {
               }
             });
 
-            this.items = enrichedItems.filter(item => !variantsToHide.has(item.item_code || item.name));
+            this.allItems = enrichedItems.filter(item => !variantsToHide.has(item.item_code || item.name));
+            this.applyFilter();
             this.isLoading = false;
           },
           error: () => {
-            this.items = data.map((item) => this.toProductMasterItem(item, null, 0));
+            this.allItems = data.map((item) => this.toProductMasterItem(item, null, 0));
+            this.applyFilter();
             this.isLoading = false;
           }
         });
@@ -144,6 +152,18 @@ export class ProductMasterComponent implements OnInit, OnDestroy {
         this.errorMessage = 'Unable to fetch ERP products right now.';
       }
     });
+  }
+
+  applyFilter(): void {
+    if (!this.currentQuery) {
+      this.items = [...this.allItems];
+    } else {
+      this.items = this.allItems.filter(item => {
+        const title = (item.web_item_name || item.item_name || item.name || '').toLowerCase();
+        const desc = (item.web_long_description || '').toLowerCase();
+        return title.includes(this.currentQuery) || desc.includes(this.currentQuery);
+      });
+    }
   }
 
   private toProductMasterItem(websiteItem: any, item: any | null, sellingPrice: number): ProductMasterItem {

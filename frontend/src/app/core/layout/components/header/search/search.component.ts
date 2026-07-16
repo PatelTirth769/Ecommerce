@@ -12,10 +12,16 @@ export class SearchComponent {
   constructor(private router:Router){}
   onKey(event:KeyboardEvent,element:HTMLInputElement){
     if(event.keyCode===13&&element.value!==''){
-    this.router.navigate(['/products'],{ queryParams: { q: element.value.toLowerCase().trim() }});
+      this.router.navigate(['/product-master'],{ queryParams: { q: element.value.toLowerCase().trim() }});
+    } else if (event.keyCode===13 && element.value === '') {
+      this.router.navigate(['/product-master']);
     }
   }
   onSearch(element:HTMLInputElement){
-    this.router.navigate(['/products?q='+element.value]);
+    if (element.value) {
+      this.router.navigate(['/product-master'], { queryParams: { q: element.value.toLowerCase().trim() }});
+    } else {
+      this.router.navigate(['/product-master']);
+    }
   }
 }

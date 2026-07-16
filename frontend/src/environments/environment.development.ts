@@ -2,8 +2,7 @@ export const environment = {
   production: false,
   nodeBackendUrl: '', // In dev, we keep this empty so it uses proxy.conf.js
   erpBaseUrl: '', // In dev, we keep this empty so it uses proxy.conf.js
-  sellerApiDomain: 'https://candidoffers.com:3636/api',
-  baseAPIURL: '/',
+  baseAPIURL: '',
   fileBaseURL: 'https://ketty.hrhovercraft.in/',
   loginEndpoint: 'api/method/login',
   productsEndpoint: 'all-products',

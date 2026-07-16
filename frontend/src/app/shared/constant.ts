@@ -21,28 +21,16 @@ export const MENU:{
 }[]
 =[
     {
-        title:'Men',
-        path:'/categories/Men'
+        title:'HOME',
+        path:'/'
     },
     {
-        title:'Women',
-        path:'/categories/Women'
+        title:'Categories',
+        path:'/categories'
     },
     {
-        title:'Groceries',
-        path:'/categories/Groceries'
-    },
-    {
-        title:'Packed Foods',
-        path:'/categories/Packaged Foods'
-    },
-    {
-        title:'Beverages',
-        path:'/categories/Beverages'
-    },
-    {
-        title:'Electronics',
-        path:'/categories/Electronics'
+        title:'Store List',
+        path:'/store-list'
     },
     {
         title:'All Product',

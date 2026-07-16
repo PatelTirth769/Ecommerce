@@ -204,77 +204,6 @@ export class FirebaseAuthService {
     }
   }
 
-  async registerSeller(sellerData: any): Promise<any> {
-    const fullName = [sellerData.first_name, sellerData.middle_name, sellerData.last_name]
-      .filter(n => n)
-      .join(' ');
-
-    const userPayload = {
-      email: sellerData.email,
-      first_name: sellerData.first_name,
-      middle_name: sellerData.middle_name,
-      last_name: sellerData.last_name,
-      username: sellerData.username,
-      mobile_no: sellerData.mobile,
-      new_password: sellerData.password,
-      language: sellerData.language || 'en',
-      time_zone: sellerData.time_zone || 'Asia/Kolkata',
-      send_welcome_email: sellerData.send_welcome_email ? 1 : 0,
-      enabled: 1,
-      user_type: 'System User',
-      module_profile: 'seller',
-      role_profile_name: 'Seller',
-      roles: [
-        { doctype: 'Has Role', role: 'Sales Master Manager' },
-        { doctype: 'Has Role', role: 'Sales User' },
-        { doctype: 'Has Role', role: 'Seller' },
-        { doctype: 'Has Role', role: 'Stock Manager' },
-        { doctype: 'Has Role', role: 'Stock User' },
-        { doctype: 'Has Role', role: 'Supplier' }
-      ]
-    };
-
-    const supplierPayload = {
-      supplier_name: sellerData.supplier_name || fullName,
-      supplier_group: sellerData.supplier_group || 'All Supplier Groups',
-      supplier_type: sellerData.supplier_type || 'Company',
-      country: sellerData.country || 'India',
-      email_id: sellerData.email,
-      mobile_no: sellerData.mobile
-    };
-
-    const headers = {
-      'Authorization': `token ${this.API_KEY}:${this.API_SECRET}`
-    };
-
-    let userRes;
-    
-    // 1. Save to Firebase via backend API
-    try {
-      await this.http.post(`${this.nodeBackendUrl}/api/sellers`, sellerData).toPromise();
-      console.log('Seller successfully saved to Firebase.');
-    } catch (fbError) {
-      console.error('Error saving seller to Firebase:', fbError);
-    }
-
-    try {
-      // 2. Create User in ERPNext
-      userRes = await this.http.post(`${this.baseUrl}api/resource/User`, userPayload, { headers, withCredentials: true }).toPromise();
-      
-      // 3. Create Supplier in ERPNext
-      try {
-        await this.http.post(`${this.baseUrl}api/resource/Supplier`, supplierPayload, { headers, withCredentials: true }).toPromise();
-      } catch (suppError) {
-        console.error('ERPNext Supplier Creation Error (User was created):', suppError);
-      }
-    } catch (error) {
-      console.error('ERPNext Seller Registration Error:', error);
-      throw error;
-    }
-
-    return userRes;
-  }
-
   // Update ERPNext User
   updateERPNextUser(email: string, payload: any): Observable<any> {
     const headers = {
@@ -283,21 +212,7 @@ export class FirebaseAuthService {
     return this.http.put(`${this.baseUrl}api/resource/User/${email}`, payload, { headers, withCredentials: true });
   }
 
-  // Fetch Seller Profile from Firebase
-  getSellerFirebaseProfile(email: string): Observable<any> {
-    return this.http.get<any>(`${this.nodeBackendUrl}/api/sellers/${email}`).pipe(
-      map(res => res.data),
-      catchError(err => {
-        console.error('Error fetching seller firebase profile:', err);
-        return of(null);
-      })
-    );
-  }
 
-  // Update Seller Profile in Firebase
-  updateSellerFirebaseProfile(data: any): Observable<any> {
-    return this.http.post<any>(`${this.nodeBackendUrl}/api/sellers`, data);
-  }
 
   // Get Candid Categories from external Firestore project via REST API
   getCandidCategories(type: string): Observable<any[]> {

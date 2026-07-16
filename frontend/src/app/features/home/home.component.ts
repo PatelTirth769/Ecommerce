@@ -2,6 +2,9 @@ import { Component, OnInit } from '@angular/core';
 import { Product } from 'src/app/modules/product/model';
 import { ProductService } from 'src/app/modules/product/services/product.service';
 import { CartService } from 'src/app/core/services/cart.service';
+import { WebsiteItemService } from 'src/app/core/services/website-item.service';
+import { forkJoin, of } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
 
 @Component({
   selector: 'app-home',
@@ -10,7 +13,7 @@ import { CartService } from 'src/app/core/services/cart.service';
   ]
 })
 export class HomeComponent implements OnInit{
-  products:Product[]=[];
+  products:any[]=[];
   cart: Product[] = [];
   skeletons:number[]=[...new Array(6)];
   error!:string;
@@ -27,7 +30,7 @@ export class HomeComponent implements OnInit{
 
   ];
 
-  constructor(private _productService:ProductService, private cartService: CartService){
+  constructor(private _productService:ProductService, private cartService: CartService, private websiteItemService: WebsiteItemService){
   }
   ngOnInit(): void {
    this.cart = this.cartService.getCart;
@@ -45,14 +48,74 @@ export class HomeComponent implements OnInit{
   }
   newArrivalProducts(){
     this.isLoading=true;
-    const startIndex=Math.round(Math.random()*20);
-    const lastIndex=startIndex+6;
-    this._productService.get.subscribe(data=>{
-      this.isLoading=false;
-      this.products=data.slice(startIndex,lastIndex);
-    },
-    error=>this.error=error.message
-    );
+    this.websiteItemService.getWebsiteItems().subscribe({
+      next: (data) => {
+        if (!data.length) {
+          this.products = [];
+          this.isLoading = false;
+          return;
+        }
+
+        // Just take a few random items to display on home page
+        const shuffled = data.sort(() => 0.5 - Math.random());
+        const selected = shuffled.slice(0, 6);
+
+        forkJoin(
+          selected.map((websiteItem) => {
+            const itemCode = websiteItem.item_code || websiteItem.item_name || websiteItem.name;
+            return forkJoin({
+              item: this.websiteItemService.getItem(itemCode).pipe(catchError(() => of(null as any))),
+              sellingPrice: this.websiteItemService.getItemSellingPrice(itemCode, websiteItem.item_name).pipe(catchError(() => of(0)))
+            }).pipe(
+              map(({ item, sellingPrice }) => this.toProduct(websiteItem, item, sellingPrice)),
+              catchError(() => of(this.toProduct(websiteItem, null, 0)))
+            );
+          })
+        ).subscribe({
+          next: (enrichedItems) => {
+            this.products = enrichedItems;
+            this.isLoading = false;
+          },
+          error: () => {
+            this.products = selected.map((item) => this.toProduct(item, null, 0));
+            this.isLoading = false;
+          }
+        });
+      },
+      error: (error) => {
+        this.error = error.message;
+        this.isLoading = false;
+      }
+    });
+  }
+
+  private toProduct(websiteItem: any, item: any | null, sellingPrice: number): any {
+    const images = [];
+    if (websiteItem.website_image) images.push(websiteItem.website_image);
+    if (item?.image) images.push(item.image);
+    if (item?.website_image) images.push(item.website_image);
+    if (images.length === 0) images.push('assets/images/logo.png');
+
+    return {
+      id: websiteItem.name,
+      title: websiteItem.web_item_name || websiteItem.item_name || websiteItem.name,
+      description: websiteItem.web_long_description || websiteItem.short_description || item?.description || '',
+      category: websiteItem.item_group || item?.item_group || '',
+      type: websiteItem.item_group || '',
+      sizes: [],
+      images: images,
+      stock: item?.is_stock_item ? 'In stock' : (item?.is_stock_item === 0 ? 'Out of stock' : 'In stock'),
+      price: sellingPrice || websiteItem.standard_rate || item?.standard_rate || 0,
+      prevprice: item?.custom_mrp || item?.mrp || 0,
+      item_code: websiteItem.item_code || websiteItem.name,
+      erpPackSize: item?.custom_pack_size_ || websiteItem?.custom_pack_size_ || '',
+      erpShelfLifeInDays: Number(item?.shelf_life_in_days ?? websiteItem?.shelf_life_in_days ?? 0),
+      erpRemainingShelfLifeInDays: this.calculateRemainingShelfLife(item),
+      erpUom: item?.stock_uom || 'Nos',
+      isOutOfStock: Boolean(item?.disabled),
+      published: websiteItem.published !== 0,
+      modified: websiteItem.modified || item?.modified || new Date()
+    };
   }
 
   addToCart(product: Product): void {
@@ -71,5 +134,20 @@ export class HomeComponent implements OnInit{
 
   private getCartKey(product: Product): string {
     return String(product.item_code || product.type || product.id || product.title || '').trim().toLowerCase();
+  }
+
+  private calculateRemainingShelfLife(item: any): number {
+    const shelfLife = Number(item?.shelf_life_in_days ?? 0);
+    if (!shelfLife || shelfLife <= 0 || !item?.creation) {
+      return shelfLife;
+    }
+    
+    const creationDate = new Date(item.creation);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - creationDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    const remaining = shelfLife - diffDays;
+    return remaining > 0 ? remaining : 0;
   }
 }

@@ -3,7 +3,6 @@ import { environment } from 'src/environments/environment';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { BehaviorSubject, Observable, catchError, map, of } from 'rxjs';
 import { Product } from '../model';
-import { APPROVED_DUMMY_PRODUCTS } from './approved-dummy-products';
 
 interface ProductApiShape {
   id?: number;
@@ -35,7 +34,6 @@ interface ProductApiShape {
 })
 export class ProductService {
   private readonly url = (environment.baseAPIURL || '/') + environment.productsEndpoint;
-  private readonly fallbackProducts: Product[] = APPROVED_DUMMY_PRODUCTS.map((item) => this.toProduct(item as unknown as ProductApiShape));
 
   products = new BehaviorSubject<Product[]>([]);
   ratingList: boolean[] = [];
@@ -148,7 +146,7 @@ export class ProductService {
     });
 
     products = products.filter(p => p.title && p.title.trim() !== '' && p.images && p.images.length > 0 && p.price > 0);
-    return products.length > 0 ? products : this.fallbackProducts;
+    return products;
   }
 
   get get(): Observable<Product[]> {
@@ -156,7 +154,7 @@ export class ProductService {
       map((data) => this.getValidProducts(data)),
       catchError((error) => {
         console.error('Error fetching products:', error);
-        return of(this.fallbackProducts);
+        return of([]);
       })
     );
   }
@@ -172,8 +170,7 @@ export class ProductService {
       }),
       catchError((error) => {
         console.error('Error fetching products by category:', error);
-        const normalizedCategory = this.normalizeValue(category);
-        return of(this.fallbackProducts.filter((item) => this.normalizeValue(item.category) === normalizedCategory));
+        return of([]);
       })
     );
   }
@@ -189,8 +186,7 @@ export class ProductService {
       }),
       catchError((error) => {
         console.error('Error fetching related products:', error);
-        const normalizedType = this.normalizeValue(type);
-        return of(this.fallbackProducts.filter((item) => this.normalizeValue(item.type) === normalizedType));
+        return of([]);
       })
     );
   }
@@ -200,8 +196,7 @@ export class ProductService {
       map((item) => this.toProduct(item)),
       catchError((error) => {
         console.error('Error fetching product:', error);
-        const product = this.fallbackProducts.find((item) => item.id === Number(id)) || this.fallbackProducts[0];
-        return of(product);
+        return of({} as Product);
       })
     );
   }
@@ -227,18 +222,7 @@ export class ProductService {
       }),
       catchError((error) => {
         console.error('Error searching products:', error);
-        const normalizedQuery = this.normalizeValue(query || '');
-        if (!normalizedQuery) {
-          return of(this.fallbackProducts);
-        }
-
-        return of(this.fallbackProducts.filter((item) => {
-          const title = this.normalizeValue(item.title);
-          const description = this.normalizeValue(item.description);
-          const category = this.normalizeValue(item.category);
-          const type = this.normalizeValue(item.type);
-          return title.includes(normalizedQuery) || description.includes(normalizedQuery) || category.includes(normalizedQuery) || type.includes(normalizedQuery);
-        }));
+        return of([]);
       })
     );
   }
