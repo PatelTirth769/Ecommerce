@@ -29,7 +29,10 @@ import { SharedModule } from 'src/app/shared/shared.module';
     ReactiveFormsModule,
     SharedModule
   ],
-  
+  exports: [
+    ProductcardComponent
+  ]
 })
 export class ProductModule { 
 }
+// Force recompilation of ProductModule cache

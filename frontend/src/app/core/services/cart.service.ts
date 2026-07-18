@@ -887,7 +887,8 @@ export class CartService {
       discount: effectiveDiscount,
       totalprice: finalAmount,
       item_code: item.item_code || itemCode,
-      rating: existingItem ? existingItem.rating : { rate: 0, count: 0 }
+      rating: existingItem ? existingItem.rating : { rate: 0, count: 0 },
+      wholesale_pricing_tiers: existingItem ? existingItem.wholesale_pricing_tiers : undefined
     };
   }
 
@@ -1382,23 +1383,28 @@ export class CartService {
     const key = this.getCartKey(product);
     const index = this.cart.findIndex((item) => this.getCartKey(item) === key);
     const itemCode = product.item_code || product.type || product.title || '';
-    console.log('[Cart] add() called for:', itemCode, 'key:', key, 'existingIndex:', index);
+    const addedQty = product.qty && product.qty > 0 ? product.qty : 1;
+    console.log('[Cart] add() called for:', itemCode, 'key:', key, 'existingIndex:', index, 'addedQty:', addedQty);
     
+    let currentItem: Product;
     // Optimistic local update
     if (index >= 0) {
-      this.cart[index].qty = (this.cart[index].qty || 1) + 1;
-      this.cart[index].totalprice = this.cart[index].price * (this.cart[index].qty || 1);
+      currentItem = this.cart[index];
+      currentItem.qty = (currentItem.qty || 0) + addedQty;
     } else {
-      const nextProduct = { ...product, qty: 1, totalprice: Number(product.price ?? 0) } as Product;
-      this.cart.push(nextProduct);
+      currentItem = { ...product, qty: addedQty } as Product;
+      this.cart.push(currentItem);
     }
+
+    const unitPrice = this.calculateItemUnitPrice(currentItem, currentItem.qty || 1);
+    currentItem.price = unitPrice;
+    currentItem.totalprice = unitPrice * (currentItem.qty || 1);
     
     console.log('[Cart] add() → emitting new array with', this.cart.length, 'items');
     this.products.next([...this.cart]);
     this.getTotal();
 
-    const newQty = index >= 0 ? this.cart[index].qty : 1;
-    this.updateCartMethodApi(itemCode, newQty || 1).subscribe();
+    this.updateCartMethodApi(itemCode, currentItem.qty || 1).subscribe();
   }
 
   public remove(product:Product){
@@ -1449,30 +1455,55 @@ export class CartService {
     this.discountAmount.next(0);
     return total;
   }
-  addQty(item:Product){
+  private calculateItemUnitPrice(item: Product, qty: number): number {
+    if (item.wholesale_pricing_tiers && item.wholesale_pricing_tiers.length > 0) {
+      // Sort tiers to find the base rate (lowest min quantity) as fallback
+      const sortedTiers = [...item.wholesale_pricing_tiers].sort((a, b) => a.minimum_quantity - b.minimum_quantity);
+      let matchedPrice = sortedTiers[0].price;
+      
+      for (const tier of sortedTiers) {
+        if (qty >= tier.minimum_quantity && (tier.maximum_quantity === 0 || qty <= tier.maximum_quantity)) {
+          matchedPrice = tier.price;
+        }
+      }
+      return matchedPrice;
+    }
+    // If no wholesale pricing tiers, return its original price
+    return item.price;
+  }
+
+  addQty(item: Product) {
     const index = this.find(item);
     if (index < 0) return;
     
-    const totalQty = (this.cart[index].qty || 1) + 1;
-    if (totalQty <= 12) {
-      this.cart[index].qty = totalQty;
-      this.cart[index].totalprice = this.cart[index].price * totalQty;
-      this.products.next(this.cart);
-      this.getTotal();
-      
-      const itemCode = item.item_code || item.type || item.title || '';
-      this.updateCartMethodApi(itemCode, totalQty).subscribe();
-    }
+    const cartItem = this.cart[index];
+    const totalQty = (cartItem.qty || 1) + 1;
+    
+    cartItem.qty = totalQty;
+    const unitPrice = this.calculateItemUnitPrice(cartItem, totalQty);
+    cartItem.price = unitPrice;
+    cartItem.totalprice = unitPrice * totalQty;
+    
+    this.products.next(this.cart);
+    this.getTotal();
+    
+    const itemCode = item.item_code || item.type || item.title || '';
+    this.updateCartMethodApi(itemCode, totalQty).subscribe();
   }
 
-  lessQty(item:Product){
+  lessQty(item: Product) {
     const index = this.find(item);
     if (index < 0) return;
 
-    const totalQty = (this.cart[index].qty || 1) - 1;
+    const cartItem = this.cart[index];
+    const totalQty = (cartItem.qty || 1) - 1;
+    
     if (totalQty >= 1) {
-      this.cart[index].qty = totalQty;
-      this.cart[index].totalprice = this.cart[index].price * totalQty;
+      cartItem.qty = totalQty;
+      const unitPrice = this.calculateItemUnitPrice(cartItem, totalQty);
+      cartItem.price = unitPrice;
+      cartItem.totalprice = unitPrice * totalQty;
+      
       this.products.next(this.cart);
       this.getTotal();
 

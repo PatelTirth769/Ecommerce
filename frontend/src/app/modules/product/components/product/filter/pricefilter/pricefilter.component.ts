@@ -22,7 +22,7 @@ import { FilterService } from 'src/app/modules/product/services/filter.service';
     border-radius: 50%;
     pointer-events: auto;
     cursor: pointer;
-    background:#000;
+    background:#3c64a9;
     -webkit-appearance: none;
   }
  
@@ -42,6 +42,12 @@ export class PricefilterComponent implements OnInit, AfterViewInit {
   constructor(private renderer:Renderer2,private filterService:FilterService){}
 
   ngOnInit(){
+  }
+
+  reset() {
+    this.minVal = 100; // default min in original code
+    this.maxVal = 10000; // default max in original code
+    this.setProgress();
   }
 
   ngAfterViewInit(){
@@ -75,8 +81,6 @@ export class PricefilterComponent implements OnInit, AfterViewInit {
         this.setProgress();
       }
     }
-    this.filterProduct();
-
   }
 
   handleMinRange(event:Event){
@@ -94,7 +98,6 @@ export class PricefilterComponent implements OnInit, AfterViewInit {
         this.setProgress();
       }
     }
-    this.filterProduct();
   }
   
   onMinChange(event:Event){
@@ -106,7 +109,6 @@ export class PricefilterComponent implements OnInit, AfterViewInit {
       this.minVal=this.min;
     }
     this.setProgress();
-    this.filterProduct();
   }
   onMaxChange(event:Event){
     const value=parseInt((event.target as HTMLInputElement).value);
@@ -120,11 +122,6 @@ export class PricefilterComponent implements OnInit, AfterViewInit {
       this.maxVal=this.max;
     }
     this.setProgress();
-    this.filterProduct();
-  }
-
-  filterProduct(){
-    this.filterService.handlePriceFilter(this.minVal,this.maxVal);    
   }
  
 }

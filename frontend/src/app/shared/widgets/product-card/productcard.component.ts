@@ -10,6 +10,9 @@ import { Subscription } from 'rxjs';
 @Component({
   selector: 'app-productcard',
   templateUrl: './productcard.component.html',
+  host: {
+    class: 'block h-full'
+  },
   styles: [
   ]
 })

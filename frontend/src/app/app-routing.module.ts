@@ -47,8 +47,7 @@ const routes: Routes = [
   {
     path:'categories',
     pathMatch: 'full',
-    component:ComingSoonComponent,
-    canActivate:[canActivate]
+    redirectTo: 'categories/All Item Groups'
   },
   {
     path:'categories',

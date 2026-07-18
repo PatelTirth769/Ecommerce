@@ -40,6 +40,7 @@ export interface ItemRecord {
   custom_mrp?: number;
   shelf_life_in_days?: number;
   published_in_website?: number;
+  custom_wholesale_pricing?: any[];
 }
 
 interface WebsiteItemListResponse {
@@ -74,6 +75,16 @@ interface ItemPriceListResponse {
     currency?: string;
     price_list?: string;
   }>;
+}
+
+export interface PricingRuleSlab {
+  name: string;
+  title: string;
+  minQty: number;
+  maxQty: number;
+  discountPercentage: number;
+  fixedPrice: number;
+  uom: string;
 }
 
 @Injectable({
@@ -192,6 +203,22 @@ export class WebsiteItemService {
 
     // Otherwise treat it as a relative path
     return value.startsWith('/') ? `${normalizedBaseURL}${value}` : `${normalizedBaseURL}/${value}`;
+  }
+
+  getItemGroups(): Observable<any[]> {
+    const params = new HttpParams()
+      .set('fields', JSON.stringify(['name', 'item_group_name', 'parent_item_group', 'is_group']))
+      .set('limit_page_length', '100');
+
+    return this.http
+      .get<{ data: any[] }>(this.buildApiUrl('api/resource/Item%20Group'), {
+        params,
+        headers: this.authHeaders
+      })
+      .pipe(
+        map((response) => response?.data || []),
+        catchError(() => of([]))
+      );
   }
 
   getWebsiteItems(limit = 24): Observable<WebsiteItem[]> {
@@ -347,6 +374,65 @@ export class WebsiteItemService {
       );
   }
 
+  // Fetch ERPNext Pricing Rules for an item.
+  // Frappe's REST API doesn't support child-table filters reliably (403/417/empty).
+  // Strategy: fetch all active selling rules, then fetch each full doc and
+  // filter client-side by item_code in the 'items' child table.
+  getPricingRules(itemCode: string): Observable<PricingRuleSlab[]> {
+    if (!itemCode) return of([]);
+
+    // Step 1: Get list of all active selling Pricing Rules (parent-level filters only)
+    const listParams = new HttpParams()
+      .set('fields', JSON.stringify(['name', 'title']))
+      .set('filters', JSON.stringify([
+        ['Pricing Rule', 'selling', '=', 1],
+        ['Pricing Rule', 'disable', '=', 0]
+      ]))
+      .set('limit_page_length', '100');
+
+    return this.http.get<{data: any[]}>(
+      this.buildApiUrl('api/resource/Pricing%20Rule'),
+      { params: listParams, headers: this.authHeaders }
+    ).pipe(
+      switchMap(listRes => {
+        const ruleNames: string[] = (listRes?.data || []).map((r: any) => r.name);
+        if (!ruleNames.length) return of([] as PricingRuleSlab[]);
+
+        // Step 2: Fetch each full Pricing Rule document (includes 'items' child table)
+        const fullDocs$ = ruleNames.map(name =>
+          this.http.get<{data: any}>(
+            this.buildApiUrl(`api/resource/Pricing%20Rule/${encodeURIComponent(name)}`),
+            { headers: this.authHeaders }
+          ).pipe(
+            map(r => r?.data),
+            catchError(() => of(null))
+          )
+        );
+
+        return forkJoin(fullDocs$).pipe(
+          map(docs => docs
+            .filter(doc => {
+              if (!doc) return false;
+              // 'items' is the ERPNext child table field for Pricing Rule Item Code rows
+              const items: any[] = doc.items || doc.pricing_rule_item_code || [];
+              return items.some((row: any) => row.item_code === itemCode);
+            })
+            .map(doc => ({
+              name: doc.name || '',
+              title: doc.title || '',
+              minQty: Number(doc.min_qty || 0),
+              maxQty: Number(doc.max_qty || 0),
+              discountPercentage: Number(doc.discount_percentage || 0),
+              fixedPrice: Number(doc.price_list_rate || doc.rate || 0),
+              uom: doc.uom || ''
+            } as PricingRuleSlab))
+          )
+        );
+      }),
+      catchError(() => of([] as PricingRuleSlab[]))
+    );
+  }
+
   getWebsiteItemReviews(websiteItem: WebsiteItem): Observable<Record<string, unknown>[]> {
     const params = new HttpParams()
       .set('fields', JSON.stringify(['name']))
@@ -427,5 +513,58 @@ export class WebsiteItemService {
 
       return false;
     });
+  }
+
+  // Fetch all active selling Pricing Rules and build a Map: item_code → discount info.
+  // Used by list pages to show discounted prices without N per-item API calls.
+  getAllActivePricingRules(): Observable<Map<string, {discountPct: number, fixedPrice: number, minQty: number, maxQty: number}>> {
+    const listParams = new HttpParams()
+      .set('fields', JSON.stringify(['name']))
+      .set('filters', JSON.stringify([
+        ['Pricing Rule', 'selling', '=', 1],
+        ['Pricing Rule', 'disable', '=', 0]
+      ]))
+      .set('limit_page_length', '100');
+
+    return this.http.get<{data: any[]}>(
+      this.buildApiUrl('api/resource/Pricing%20Rule'),
+      { params: listParams, headers: this.authHeaders }
+    ).pipe(
+      switchMap(listRes => {
+        const names: string[] = (listRes?.data || []).map((r: any) => r.name);
+        if (!names.length) return of(new Map<string, any>());
+
+        const fullDocs$ = names.map(name =>
+          this.http.get<{data: any}>(
+            this.buildApiUrl(`api/resource/Pricing%20Rule/${encodeURIComponent(name)}`),
+            { headers: this.authHeaders }
+          ).pipe(map(r => r?.data), catchError(() => of(null)))
+        );
+
+        return forkJoin(fullDocs$).pipe(
+          map(docs => {
+            const ruleMap = new Map<string, {discountPct: number, fixedPrice: number, minQty: number, maxQty: number}>();
+            docs.forEach(doc => {
+              if (!doc) return;
+              const items: any[] = doc.items || doc.pricing_rule_item_code || [];
+              const discountPct = Number(doc.discount_percentage || 0);
+              const fixedPrice = Number(doc.price_list_rate || doc.rate || 0);
+              const minQty = Number(doc.min_qty || 0);
+              const maxQty = Number(doc.max_qty || 0);
+              items.forEach((row: any) => {
+                if (!row.item_code) return;
+                const existing = ruleMap.get(row.item_code);
+                // Keep the rule with highest discount
+                if (!existing || discountPct > existing.discountPct) {
+                  ruleMap.set(row.item_code, { discountPct, fixedPrice, minQty, maxQty });
+                }
+              });
+            });
+            return ruleMap;
+          })
+        );
+      }),
+      catchError(() => of(new Map<string, any>()))
+    );
   }
 }

@@ -72,9 +72,27 @@ export class HomeComponent implements OnInit{
             );
           })
         ).subscribe({
-          next: (enrichedItems) => {
-            this.products = enrichedItems;
-            this.isLoading = false;
+          next: (enrichedItems: any[]) => {
+            // Apply pricing rule discounts dynamically
+            this.websiteItemService.getAllActivePricingRules().subscribe(ruleMap => {
+              this.products = enrichedItems.map(item => {
+                const ic = item.item_code || item.name;
+                const rule = ruleMap.get(ic);
+                if (rule && (rule.discountPct > 0 || rule.fixedPrice > 0) && rule.minQty <= 1) {
+                  const base = item.price;
+                  const discounted = rule.fixedPrice > 0
+                    ? rule.fixedPrice
+                    : Math.round(base * (1 - rule.discountPct / 100));
+                  return {
+                    ...item,
+                    erpDiscountedPrice: discounted,
+                    erpDiscountPct: rule.discountPct
+                  };
+                }
+                return item;
+              });
+              this.isLoading = false;
+            });
           },
           error: () => {
             this.products = selected.map((item) => this.toProduct(item, null, 0));
@@ -96,10 +114,12 @@ export class HomeComponent implements OnInit{
     if (item?.website_image) images.push(item.website_image);
     if (images.length === 0) images.push('assets/images/logo.png');
 
+    const rawDesc = websiteItem.description || websiteItem.short_description || item?.description || '';
+
     return {
       id: websiteItem.name,
       title: websiteItem.web_item_name || websiteItem.item_name || websiteItem.name,
-      description: websiteItem.web_long_description || websiteItem.short_description || item?.description || '',
+      description: rawDesc,
       category: websiteItem.item_group || item?.item_group || '',
       type: websiteItem.item_group || '',
       sizes: [],
@@ -149,5 +169,35 @@ export class HomeComponent implements OnInit{
     
     const remaining = shelfLife - diffDays;
     return remaining > 0 ? remaining : 0;
+  }
+
+  private cleanDescription(value: string): string {
+    if (!value) {
+      return '';
+    }
+
+    try {
+      // Decode HTML entities
+      const txt = document.createElement('textarea');
+      txt.innerHTML = value;
+      let decoded = txt.value;
+
+      // Handle potential double encoding
+      if (decoded.includes('&lt;') || decoded.includes('&gt;') || decoded.includes('<')) {
+        txt.innerHTML = decoded;
+        decoded = txt.value;
+      }
+
+      // Strip HTML tags using parser
+      const parserNode = document.createElement('div');
+      parserNode.innerHTML = decoded;
+      
+      return (parserNode.textContent || parserNode.innerText || '')
+        .replace(/[ \t]+/g, ' ')
+        .trim();
+    } catch (e) {
+      // Fallback regex if DOMParser/document fails (e.g. in environments without DOM)
+      return value.replace(/<[^>]*>/g, '').trim();
+    }
   }
 }

@@ -1,119 +1,115 @@
-<div class="bg-white h-full p-3 md:mr-6 overflow-auto">
-  <h3 class="text-md font-semibold text-right flex justify-between md:text-left mb-3">
-    <button class="static left-2 flex items-center block md:hidden" (click)="onClose()">
-      CLOSE
-      <i class="fa-solid fa-xmark text-xl"></i>
-    </button>
-    <span>
-      <i class="fa-solid fa-filter text-gray-700"></i>
+<div class="bg-white h-full p-4 md:mr-6 overflow-auto rounded-xl border border-gray-100 shadow-sm">
+  <h3 class="text-sm font-bold flex justify-between items-center text-gray-800 mb-4 pb-3 border-b border-gray-100">
+    <span class="flex items-center gap-2">
+      <i class="fa-solid fa-sliders text-gray-500"></i>
       Filters
     </span>
-    
+    <button class="static left-2 flex items-center block md:hidden text-xs text-gray-400 hover:text-gray-600" (click)="onClose()">
+      CLOSE
+      <i class="fa-solid fa-xmark text-sm ml-1"></i>
+    </button>
   </h3>
 
-  <div class="border-y border-gray-300 mb-5">
-    <!-- <div class="py-2">
-      <button class="px-3 py-1 text-sm bg-gray-800 text-white">
-        <i class="fa-solid fa-filter-circle-xmark"></i>
-        Clear Filter
-      </button>
-    </div> -->
-    <h3 class="text-sm font-semibold uppercase ml-3 py-3">Ratings</h3>
-    <div class="">
-      <div class="flex items-center gap-1 pl-4 text-lg rounded dark:border-gray-700 pt-2">
-        <button 
-        type="button"
-        *ngFor="let rate of ratingList; index as i"
-        (click)="applyFilter(i+1,'rating')"
+  <!-- Categories / Item Groups -->
+  <div class="mb-6 pb-4 border-b border-gray-100">
+    <div class="flex items-center gap-2 px-1 mb-2">
+      <i class="fa-solid fa-tags text-[#3c64a9] text-xs"></i>
+      <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400">Categories</h3>
+    </div>
+    <div class="space-y-1">
+      <a 
+        *ngFor="let group of itemGroups" 
+        [routerLink]="['/categories', group]"
+        (click)="onClose()"
+        [ngClass]="{
+          'text-[#3c64a9] font-semibold bg-[#3c64a9]/10 border-l-4 border-[#3c64a9]': category === group,
+          'text-gray-600 hover:text-gray-900 hover:bg-gray-50 hover:translate-x-1 border-l-4 border-transparent': category !== group
+        }"
+        class="flex items-center justify-between px-3 py-2.5 text-sm rounded-r-lg transition-all duration-200 ease-in-out cursor-pointer"
+      >
+        <span class="truncate">{{ group }}</span>
+        <span 
+          [ngClass]="{
+            'bg-[#3c64a9] text-white': category === group,
+            'bg-gray-100 text-gray-500': category !== group
+          }"
+          class="text-[10px] font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center transition-colors duration-200"
         >
-          <i class="fa-solid fa-star" *ngIf="rate"></i>
-          <i class="fa-regular fa-star" *ngIf="!rate"></i>
-        </button>
-        <span class="text-sm font-bold">& Up</span>
-      </div>
-      <!-- <div class="text-lg rounded dark:border-gray-700 pt-2 pl-4">
-        
-        <button 
-        type="button"
-        (click)="selectRate(4)"
-        >
-          <i class="fa-solid fa-star"></i>
-          <i class="fa-solid fa-star"></i>
-          <i class="fa-solid fa-star"></i>
-          <i class="fa-solid fa-star"></i>
-          <i class="fa-regular fa-star"></i>
-          <span class="text-sm ml-2">& Up</span>
-        </button>
-        <br>
-        <button 
-        type="button"
-        (click)="selectRate(3)"
-        >
-            <i class="fa-solid fa-star"></i>
-            <i class="fa-solid fa-star"></i>
-          <i class="fa-solid fa-star"></i>
-          <i class="fa-regular fa-star"></i>
-          <i class="fa-regular fa-star"></i>
-          <span class="text-sm ml-2 font-bold">& Up</span>
-        </button>
-        <br>
-        <button 
-        type="button"
-        (click)="selectRate(2)"
-        >
-          <i class="fa-solid fa-star"></i>
-          <i class="fa-solid fa-star"></i>
-          <i class="fa-regular fa-star"></i>
-          <i class="fa-regular fa-star"></i>
-          <i class="fa-regular fa-star"></i>
-          <span class="text-sm ml-2">& Up</span>
-        </button>
-        <br>
-       
-        <button 
-        type="button"
-        class="m-0 p-0"
-        (click)="selectRate(1)"
-        >
-          <i class="fa-solid fa-star"></i>
-          <i class="fa-regular fa-star"></i>
-          <i class="fa-regular fa-star"></i>
-          <i class="fa-regular fa-star"></i>
-          <i class="fa-regular fa-star"></i>
-          <span class="text-sm ml-2">& Up</span>
-        </button>
-      
-        
-        
-      </div> -->
-
+          {{ getCategoryCount(group) }}
+        </span>
+      </a>
     </div>
   </div>
 
-  <div class="border-y border-gray-300 rounded mb-5">
-    <h3 class="text-sm font-semibold uppercase ml-3 py-3">Types</h3>
-    <div class="" *ngFor="let category of filterCategories">
-      <div class="flex items-center pl-4 rounded dark:border-gray-700">
+  <!-- Ratings Section -->
+  <div class="mb-6 pb-4 border-b border-gray-100">
+    <div class="flex items-center gap-2 px-1 mb-3">
+      <i class="fa-solid fa-star text-[#3c64a9] text-xs"></i>
+      <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400">Ratings</h3>
+    </div>
+    <div class="px-2">
+      <div class="flex items-center gap-1.5 text-lg pt-1">
+        <button 
+          type="button"
+          *ngFor="let rate of ratingList; index as i"
+          (click)="selectRating(i+1)"
+          class="focus:outline-none transition-transform duration-150 hover:scale-125 text-amber-400"
+        >
+          <i class="fa-solid fa-star" *ngIf="rate"></i>
+          <i class="fa-regular fa-star text-gray-300" *ngIf="!rate"></i>
+        </button>
+        <span class="text-xs font-bold text-gray-500 ml-2">& Up</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Types Section -->
+  <div class="mb-6 pb-4 border-b border-gray-100">
+    <div class="flex items-center gap-2 px-1 mb-3">
+      <i class="fa-solid fa-filter text-[#3c64a9] text-xs"></i>
+      <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400">Types</h3>
+    </div>
+    <div class="space-y-2 px-2">
+      <div class="flex items-center" *ngFor="let categoryItem of filterCategories">
         <input
-          [checked]="category.checked"
-          id="category-checked"
+          [checked]="categoryItem.checked"
+          [id]="'cat-' + categoryItem.id"
           type="checkbox"
-          (change)="applyFilter(category.id,'category')"
-          name="bordered-checkbox"
-          class="w-5 h-5 accent-gray-700 bg-gray-100 border-gray-300 rounded"
+          (change)="toggleCategoryCheckbox(categoryItem)"
+          class="w-4.5 h-4.5 text-[#3c64a9] accent-[#3c64a9] bg-gray-50 border-gray-300 rounded focus:ring-[#3c64a9]/50 transition-colors duration-150 cursor-pointer"
         />
         <label
-          for="category-checked"
-          class="w-full py-2 ml-2 text-sm font-semibold text-gray-900 dark:text-gray-300"
+          [for]="'cat-' + categoryItem.id"
+          class="pl-3 text-xs font-medium text-gray-600 hover:text-gray-800 transition-colors duration-150 cursor-pointer select-none"
         >
-          {{ category.label }}
+          {{ categoryItem.label }}
         </label>
       </div>
     </div>
   </div>
 
-  <app-pricefilter></app-pricefilter>
+  <!-- Price Section -->
+  <div class="mb-6 pb-4">
+    <app-pricefilter></app-pricefilter>
+  </div>
 
-
+  <!-- Action Buttons -->
+  <div class="mt-6 space-y-2 px-1">
+    <button 
+      (click)="applyFilters()"
+      class="w-full bg-[#3c64a9] text-white hover:bg-[#325490] font-bold text-sm py-3 rounded-xl transition-all duration-200 shadow-sm shadow-[#3c64a9]/20 flex items-center justify-center gap-2 cursor-pointer"
+    >
+      <i class="fa-solid fa-circle-check"></i>
+      Apply Filters
+    </button>
+    
+    <button 
+      (click)="clearFilters()"
+      class="w-full bg-gray-50 text-gray-500 hover:text-red-500 hover:bg-red-50/50 font-semibold text-xs py-2.5 rounded-lg transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer"
+    >
+      <i class="fa-solid fa-trash-can"></i>
+      Clear Filters
+    </button>
+  </div>
   
 </div>

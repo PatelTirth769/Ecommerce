@@ -1,213 +1,232 @@
 import { Injectable } from '@angular/core';
 import { environment } from 'src/environments/environment';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { BehaviorSubject, Observable, catchError, map, of } from 'rxjs';
+import { BehaviorSubject, Observable, catchError, map, of, forkJoin, switchMap } from 'rxjs';
 import { Product } from '../model';
-
-interface ProductApiShape {
-  id?: number;
-  title?: string;
-  description?: string;
-  category?: string;
-  type?: string;
-  sizes?: Array<string | number>;
-  images?: string[];
-  stock?: string;
-  price?: number;
-  prevprice?: number;
-  item_code?: string;
-  rating?: {
-    rate?: number;
-    count?: number;
-  };
-  name?: string;
-  item_name?: string;
-  web_item_name?: string;
-  web_long_description?: string;
-  item_group?: string;
-  website_image?: string;
-  standard_rate?: number;
-}
+import { WebsiteItemService } from '../../../core/services/website-item.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class ProductService {
-  private readonly url = (environment.baseAPIURL || '/') + environment.productsEndpoint;
-
   products = new BehaviorSubject<Product[]>([]);
   ratingList: boolean[] = [];
 
-  constructor(private http: HttpClient) {}
-
-  private toProduct(item: any): Product {
-    const title = item.title ?? item.web_item_name ?? item.item_name ?? item.name ?? '';
-    const images = item.images ?? (item.website_image ? [item.website_image] : []);
-    
-    return {
-      id: Number(item.id ?? item.name ?? 0),
-      title: title,
-      description: item.description ?? item.web_long_description ?? item.short_description ?? '',
-      category: item.category ?? item.item_group ?? '',
-      type: item.type ?? item.item_group ?? '',
-      sizes: (item.sizes ?? []).map((size: any) => String(size)),
-      images: images,
-      stock: item.stock ?? 'In stock',
-      price: Number(item.price ?? item.standard_rate ?? 0),
-      prevprice: Number(item.prevprice ?? item.custom_mrp ?? item.mrp ?? 0),
-      mrp: Number(item.custom_mrp ?? item.mrp ?? item.prevprice ?? 0),
-      pack_size: item.custom_pack_size_ || '',
-      shelf_life_in_days: Number(item.shelf_life_in_days ?? 0),
-      variant_of: item.variant_of || '',
-      has_variants: Boolean(item.has_variants),
-      item_code: item.item_code ?? item.name,
-      rating: {
-        rate: Number(item.rating?.rate ?? 0),
-        count: Number(item.rating?.count ?? 0)
-      }
-    };
-  }
-
-  private normalizeProducts(data: any): Product[] {
-    if (!data) return [];
-    
-    if (data.data && Array.isArray(data.data)) {
-      return data.data.map((item: any) => this.toProduct(item));
-    }
-    if (data.message && Array.isArray(data.message)) {
-      return data.message.map((item: any) => this.toProduct(item));
-    }
-
-    if (Array.isArray(data)) {
-      return data.map((item: any) => this.toProduct(item));
-    }
-
-    const normalizedProducts: Product[] = [];
-    for (const key in data) {
-      if (data.hasOwnProperty(key)) {
-        normalizedProducts.push(this.toProduct(data[key]));
-      }
-    }
-
-    return normalizedProducts;
-  }
+  constructor(
+    private http: HttpClient,
+    private websiteItemService: WebsiteItemService
+  ) {}
 
   private normalizeValue(value: string): string {
     return value.trim().toLowerCase();
   }
 
-  private getValidProducts(data: any): Product[] {
-    let products = this.normalizeProducts(data);
-    
-    // Group variants by their template's item_code using prefix matching
-    // ERPNext variants have item_codes like 'TemplateCode-VariantCode'
-    const variantsByTemplate = new Map<string, Product[]>();
-    
-    products.forEach(v => {
-      // If variant_of exists, use it
-      let templateCode = v.variant_of;
-      
-      // If not, try to find a template by prefix matching the item_code
-      if (!templateCode && v.item_code) {
-        const variantItemCode = v.item_code;
-        const template = products.find(t => 
-          t.item_code && 
-          variantItemCode !== t.item_code && 
-          variantItemCode.startsWith(t.item_code + '-')
+  private fetchProductsFromERP(): Observable<Product[]> {
+    const websiteItemParams = new HttpParams()
+      .set('fields', JSON.stringify(['name', 'item_name', 'item_code', 'web_item_name', 'route', 'website_image', 'thumbnail', 'description', 'published', 'modified', 'stock_uom']))
+      .set('limit_page_length', '1000');
+
+    const itemParams = new HttpParams()
+      .set('fields', JSON.stringify(['name', 'item_name', 'item_group', 'standard_rate', 'image', 'custom_mrp', 'custom_wholesale_pricing', 'disabled', 'creation', 'shelf_life_in_days', 'custom_pack_size_', 'stock_uom', 'modified']))
+      .set('limit_page_length', '1000');
+
+    const priceParams = new HttpParams()
+      .set('fields', JSON.stringify(['item_code', 'price_list_rate', 'selling']))
+      .set('limit_page_length', '1000');
+
+    return forkJoin({
+      webItems: this.http.get<any>('/api/resource/Website%20Item', { params: websiteItemParams }),
+      items: this.http.get<any>('/api/resource/Item', { params: itemParams }),
+      prices: this.http.get<any>('/api/resource/Item%20Price', { params: priceParams })
+    }).pipe(
+      switchMap(({ webItems, items, prices }: { webItems: any, items: any, prices: any }) => {
+        const webList = Array.isArray(webItems?.data) ? webItems.data : [];
+        const itemList = Array.isArray(items?.data) ? items.data : [];
+        const priceList = Array.isArray(prices?.data) ? prices.data : [];
+
+        const products: Product[] = [];
+
+        webList.forEach((webItem: any) => {
+          const matchedItem = itemList.find((item: any) => item.name === webItem.item_code);
+          const matchedPrice = priceList.find((price: any) => price.item_code === webItem.item_code);
+
+          // Skip if item is disabled
+          if (matchedItem && matchedItem.disabled) {
+            return;
+          }
+
+          const rawImage = webItem.website_image || (matchedItem ? matchedItem.image : '');
+          const resolvedImage = this.websiteItemService.resolveImageUrl(rawImage);
+
+          const finalPrice = matchedPrice ? Number(matchedPrice.price_list_rate || 0) : Number(matchedItem?.standard_rate || 0);
+          const finalMrp = matchedItem ? Number(matchedItem.custom_mrp || matchedItem.mrp || 0) : finalPrice;
+
+          const rawWholesale = matchedItem?.custom_wholesale_pricing || [];
+          const wholesaleTiers = Array.isArray(rawWholesale) ? rawWholesale.map((tier: any) => ({
+            minimum_quantity: Number(tier.minimum_quantity || 0),
+            maximum_quantity: Number(tier.maximum_quantity || 0),
+            unit: tier.unit,
+            price: Number(tier.price || 0),
+            discount_: Number(tier.discount_ || 0),
+            active: Number(tier.active || 0)
+          })) : [];
+
+          // Format unique ID mapping safely
+          let numericId = 0;
+          if (webItem.name) {
+            const matches = webItem.name.match(/\d+/);
+            numericId = matches ? Number(matches[0]) : 0;
+          }
+
+          // Calculate remaining shelf life
+          let remainingShelfLife: number | undefined;
+          if (matchedItem) {
+            const shelfLife = Number(matchedItem.shelf_life_in_days ?? 0);
+            if (shelfLife > 0 && matchedItem.creation) {
+              const creationDate = new Date(matchedItem.creation);
+              const now = new Date();
+              const diffTime = Math.abs(now.getTime() - creationDate.getTime());
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              const remaining = shelfLife - diffDays;
+              remainingShelfLife = remaining > 0 ? remaining : 0;
+            } else {
+              remainingShelfLife = shelfLife > 0 ? shelfLife : undefined;
+            }
+          }
+
+          products.push({
+            id: webItem.name || webItem.route || String(numericId),
+            title: webItem.web_item_name || webItem.item_name || matchedItem?.item_name || '',
+            description: webItem.description || matchedItem?.description || '',
+            category: matchedItem?.item_group || webItem.item_group || '',
+            type: matchedItem?.item_group || '',
+            sizes: [],
+            images: [resolvedImage],
+            stock: matchedItem?.disabled ? 'Out of stock' : 'In stock',
+            price: finalPrice,
+            prevprice: finalMrp,
+            mrp: finalMrp,
+            pack_size: matchedItem?.custom_pack_size_ || webItem.custom_pack_size_ || '',
+            shelf_life_in_days: Number(matchedItem?.shelf_life_in_days ?? webItem.shelf_life_in_days ?? 0),
+            erpRemainingShelfLifeInDays: remainingShelfLife,
+            published: webItem.published !== 0,
+            modified: webItem.modified || matchedItem?.modified || new Date(),
+            stock_uom: matchedItem?.stock_uom || webItem.stock_uom || 'Nos',
+            variant_of: webItem.variant_of || '',
+            has_variants: Boolean(webItem.has_variants),
+            item_code: webItem.item_code || webItem.name,
+            wholesale_pricing_tiers: wholesaleTiers,
+            rating: { rate: 0, count: 0 }
+          });
+        });
+
+        // Group variants and patch templates if needed (keeping original business logic)
+        const variantsByTemplate = new Map<string, Product[]>();
+        products.forEach(v => {
+          let templateCode = v.variant_of;
+          if (!templateCode && v.item_code) {
+            const variantItemCode = v.item_code;
+            const template = products.find(t => 
+              t.item_code && 
+              variantItemCode !== t.item_code && 
+              variantItemCode.startsWith(t.item_code + '-')
+            );
+            if (template) {
+              templateCode = template.item_code;
+            }
+          }
+          if (templateCode) {
+            if (!variantsByTemplate.has(templateCode)) {
+              variantsByTemplate.set(templateCode, []);
+            }
+            variantsByTemplate.get(templateCode)!.push(v);
+          }
+        });
+
+        // Patch template products with real data from their variants
+        products.forEach(p => {
+          if (p.item_code && variantsByTemplate.has(p.item_code)) {
+            const variants = variantsByTemplate.get(p.item_code)!;
+            if (variants.length > 0) {
+              variants.sort((a, b) => (a.price || 0) - (b.price || 0));
+              const firstVariant = variants.find(v => v.price > 0) || variants[0];
+              p.price = firstVariant.price;
+              p.prevprice = firstVariant.prevprice;
+              p.mrp = firstVariant.mrp;
+              p.pack_size = firstVariant.pack_size;
+            }
+          }
+        });
+
+        // Fetch pricing rules and overlay them
+        return this.websiteItemService.getAllActivePricingRules().pipe(
+          map(ruleMap => {
+            return products.map(p => {
+              const rule = ruleMap.get(p.item_code || '');
+              if (rule && (rule.discountPct > 0 || rule.fixedPrice > 0) && rule.minQty <= 1) {
+                const discounted = rule.fixedPrice > 0
+                  ? rule.fixedPrice
+                  : Math.round(p.price * (1 - rule.discountPct / 100));
+                return {
+                  ...p,
+                  erpDiscountedPrice: discounted,
+                  erpDiscountPct: rule.discountPct
+                };
+              }
+              return p;
+            }).filter(p => p.title && p.title.trim() !== '' && p.images && p.images.length > 0);
+          }),
+          catchError(() => of(products.filter(p => p.title && p.title.trim() !== '' && p.images && p.images.length > 0)))
         );
-        if (template) {
-          templateCode = template.item_code;
-        }
-      }
-
-      if (templateCode) {
-        if (!variantsByTemplate.has(templateCode)) {
-          variantsByTemplate.set(templateCode, []);
-        }
-        variantsByTemplate.get(templateCode)!.push(v);
-      }
-    });
-
-    // Patch template products with real data from their variants so they don't show generic/incorrect prices (e.g., 300 Rs)
-    products.forEach(p => {
-      if (p.item_code && variantsByTemplate.has(p.item_code)) {
-        const variants = variantsByTemplate.get(p.item_code)!;
-        if (variants.length > 0) {
-          // Sort variants by price to show the lowest variant price on the template card
-          variants.sort((a, b) => (a.price || 0) - (b.price || 0));
-          const firstVariant = variants.find(v => v.price > 0) || variants[0];
-          
-          p.price = firstVariant.price;
-          p.prevprice = firstVariant.prevprice;
-          p.mrp = firstVariant.mrp;
-          p.pack_size = firstVariant.pack_size;
-        }
-      }
-    });
-
-    products = products.filter(p => p.title && p.title.trim() !== '' && p.images && p.images.length > 0 && p.price > 0);
-    return products;
-  }
-
-  get get(): Observable<Product[]> {
-    return this.http.get<any>(this.url).pipe(
-      map((data) => this.getValidProducts(data)),
+      }),
       catchError((error) => {
-        console.error('Error fetching products:', error);
+        console.error('Error fetching ERP products:', error);
         return of([]);
       })
     );
   }
 
+  get get(): Observable<Product[]> {
+    return this.fetchProductsFromERP();
+  }
+
   getByCategory(category: string): Observable<Product[]> {
-    return this.http.get<any>(this.url, {
-      params: new HttpParams().set('category', category)
-    }).pipe(
-      map((data) => {
-        const products = this.getValidProducts(data);
-        const normalizedCategory = this.normalizeValue(category);
+    const normalizedCategory = this.normalizeValue(category || '');
+    const isAll = normalizedCategory === 'all item groups' || normalizedCategory === 'all' || !normalizedCategory;
+
+    return this.fetchProductsFromERP().pipe(
+      map((products) => {
+        if (isAll) {
+          return products;
+        }
         return products.filter((item) => this.normalizeValue(item.category) === normalizedCategory);
-      }),
-      catchError((error) => {
-        console.error('Error fetching products by category:', error);
-        return of([]);
       })
     );
   }
 
   getRelated(type: string): Observable<Product[]> {
-    return this.http.get<any>(this.url, {
-      params: new HttpParams().set('type', type)
-    }).pipe(
-      map((data) => {
-        const products = this.getValidProducts(data);
-        const normalizedType = this.normalizeValue(type);
+    const normalizedType = this.normalizeValue(type || '');
+    return this.fetchProductsFromERP().pipe(
+      map((products) => {
         return products.filter((item) => this.normalizeValue(item.type) === normalizedType);
-      }),
-      catchError((error) => {
-        console.error('Error fetching related products:', error);
-        return of([]);
       })
     );
   }
 
-  getProduct(id: number): Observable<Product> {
-    return this.http.get<any>(`${this.url}/${id}`).pipe(
-      map((item) => this.toProduct(item)),
-      catchError((error) => {
-        console.error('Error fetching product:', error);
-        return of({} as Product);
+  getProduct(id: any): Observable<Product> {
+    const searchId = String(id || '');
+    return this.fetchProductsFromERP().pipe(
+      map((products) => {
+        const product = products.find(p => String(p.id) === searchId || p.item_code === searchId);
+        return product || {} as Product;
       })
     );
   }
 
   search(query: string): Observable<Product[]> {
-    return this.http.get<any>(this.url, {
-      params: new HttpParams().set('q', query)
-    }).pipe(
-      map((data) => {
-        const products = this.getValidProducts(data);
-        const normalizedQuery = this.normalizeValue(query || '');
+    const normalizedQuery = this.normalizeValue(query || '');
+    return this.fetchProductsFromERP().pipe(
+      map((products) => {
         if (!normalizedQuery) {
           return products;
         }
@@ -219,18 +238,15 @@ export class ProductService {
           const type = this.normalizeValue(item.type);
           return title.includes(normalizedQuery) || description.includes(normalizedQuery) || category.includes(normalizedQuery) || type.includes(normalizedQuery);
         });
-      }),
-      catchError((error) => {
-        console.error('Error searching products:', error);
-        return of([]);
       })
     );
   }
 
   getRatingStar(product: Product) {
     this.ratingList = [];
+    const rate = product?.rating?.rate ?? 0;
     [...Array(5)].map((_, index) => {
-      return index + 1 <= Math.trunc(product?.rating.rate) ? this.ratingList.push(true) : this.ratingList.push(false);
+      return index + 1 <= Math.trunc(rate) ? this.ratingList.push(true) : this.ratingList.push(false);
     });
     return this.ratingList;
   }

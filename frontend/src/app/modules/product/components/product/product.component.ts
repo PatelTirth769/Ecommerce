@@ -24,6 +24,9 @@ export class ProductComponent implements OnInit, OnDestroy {
     categoryId:new BehaviorSubject<number|null>(null)
   }
   ratingList:boolean[]=[];
+  pageSize = 25; // default to 25 as shown in mockup
+  allItemsFiltered: Product[] = [];
+  allItemsFilteredCount = 0;
 
   constructor(
     private productService: ProductService,
@@ -39,7 +42,7 @@ export class ProductComponent implements OnInit, OnDestroy {
   getProductsByCategory(): Product[] {
     this.isLoading = true;
     this.route.params.subscribe((data: Params) => {
-      this.category = data['category'];
+      this.category = data['category'] || 'All Item Groups';
       this.ratingList=[false,false,false,false];
       this.resetFilter();
       this.productService.getByCategory(this.category).subscribe((data)=>{
@@ -57,8 +60,23 @@ export class ProductComponent implements OnInit, OnDestroy {
   }
   handleFilter() {
     this.subsFilterProducts=this.filterService.filteredProducts.subscribe((data) => {
-      this.products = data
+      this.allItemsFiltered = data || [];
+      this.allItemsFilteredCount = this.allItemsFiltered.length;
+      this.applyPagination();
     });
+  }
+
+  applyPagination(): void {
+    this.products = this.allItemsFiltered.slice(0, this.pageSize);
+  }
+
+  setPageSize(size: number): void {
+    this.pageSize = size;
+    this.applyPagination();
+  }
+
+  getMin(a: number, b: number): number {
+    return Math.min(a, b);
   }
   
   onFilter(value:boolean){

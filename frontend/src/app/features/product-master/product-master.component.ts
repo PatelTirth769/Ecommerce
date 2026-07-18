@@ -16,6 +16,8 @@ interface ProductMasterItem extends WebsiteItem {
   erpRemainingShelfLifeInDays?: number;
   erpVariantOf?: string;
   item_group?: string;
+  erpDiscountedPrice?: number;  // pricing-rule adjusted price
+  erpDiscountPct?: number;       // discount % for badge
 }
 
 @Component({
@@ -29,6 +31,8 @@ export class ProductMasterComponent implements OnInit, OnDestroy {
   isLoading = false;
   errorMessage = '';
   currentQuery = '';
+  pageSize = 10;
+  allItemsFilteredCount = 0;
   private fallbackImage = 'assets/images/logo.png';
   private cartSub!: Subscription;
 
@@ -55,7 +59,7 @@ export class ProductMasterComponent implements OnInit, OnDestroy {
     this.isLoading = true;
     this.errorMessage = '';
 
-    this.websiteItemService.getWebsiteItems().subscribe({
+    this.websiteItemService.getWebsiteItems(1000).subscribe({
       next: (data) => {
         if (!data.length) {
           this.items = [];
@@ -130,9 +134,28 @@ export class ProductMasterComponent implements OnInit, OnDestroy {
               }
             });
 
-            this.allItems = enrichedItems.filter(item => !variantsToHide.has(item.item_code || item.name));
+            const baseItems = enrichedItems.filter(item => !variantsToHide.has(item.item_code || item.name));
+            this.allItems = baseItems;
             this.applyFilter();
-            this.isLoading = false;
+
+            // Apply pricing rule discounts — fetch all rules once, map to items
+            this.websiteItemService.getAllActivePricingRules().subscribe(ruleMap => {
+              this.allItems = this.allItems.map(item => {
+                const ic = (item as any).item_code || item.name;
+                const rule = ruleMap.get(ic);
+                if (rule && (rule.discountPct > 0 || rule.fixedPrice > 0) && rule.minQty <= 1) {
+                  const base = item.erpPrice;
+                  const discounted = rule.fixedPrice > 0
+                    ? rule.fixedPrice
+                    : Math.round(base * (1 - rule.discountPct / 100));
+                  return { ...item, erpDiscountedPrice: discounted, erpDiscountPct: rule.discountPct };
+                }
+                return item;
+              });
+              this.applyFilter();
+              this.isLoading = false;
+            });
+            if (!this.allItems.length) this.isLoading = false;
           },
           error: () => {
             this.allItems = data.map((item) => this.toProductMasterItem(item, null, 0));
@@ -155,21 +178,34 @@ export class ProductMasterComponent implements OnInit, OnDestroy {
   }
 
   applyFilter(): void {
+    let filtered: ProductMasterItem[] = [];
     if (!this.currentQuery) {
-      this.items = [...this.allItems];
+      filtered = [...this.allItems];
     } else {
-      this.items = this.allItems.filter(item => {
+      filtered = this.allItems.filter(item => {
         const title = (item.web_item_name || item.item_name || item.name || '').toLowerCase();
         const desc = (item.web_long_description || '').toLowerCase();
         return title.includes(this.currentQuery) || desc.includes(this.currentQuery);
       });
     }
+
+    this.allItemsFilteredCount = filtered.length;
+    this.items = filtered.slice(0, this.pageSize);
+  }
+
+  setPageSize(size: number): void {
+    this.pageSize = size;
+    this.applyFilter();
+  }
+
+  getMin(a: number, b: number): number {
+    return Math.min(a, b);
   }
 
   private toProductMasterItem(websiteItem: any, item: any | null, sellingPrice: number): ProductMasterItem {
     return {
       ...websiteItem,
-      erpPrice: Number(item?.standard_rate ?? 0) || Number(sellingPrice ?? 0),
+      erpPrice: Number(sellingPrice ?? 0) || Number(item?.standard_rate ?? 0),
       erpMrp: Number((item as any)?.custom_mrp) || Number((websiteItem as any)?.custom_mrp) || Number((item as any)?.mrp) || 0,
       erpPackSize: (item as any)?.custom_pack_size_ || (websiteItem as any)?.custom_pack_size_ || '',
       erpShelfLifeInDays: Number((item as any)?.shelf_life_in_days ?? (websiteItem as any)?.shelf_life_in_days ?? 0),

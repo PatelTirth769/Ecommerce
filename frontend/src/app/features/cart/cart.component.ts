@@ -89,6 +89,10 @@ export class CartComponent implements OnInit, OnDestroy{
     });
   }
 
+  get totalQty(): number {
+    return this.cart.reduce((sum: number, item: any) => sum + (Number(item.qty) || 1), 0);
+  }
+
   applyCoupon(): void {
     this.couponMessage = '';
     this.couponMessageType = '';

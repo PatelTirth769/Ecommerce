@@ -9,6 +9,9 @@ const PUBLIC_RESOURCE_PATTERNS = [
   '/api/resource/Item Price',
   '/api/resource/Item%20Review',
   '/api/resource/Item Review',
+  '/api/resource/Pricing%20Rule',
+  '/api/resource/Pricing Rule',
+  '/api/method/frappe.client.get_list',
   '/api/resource/Quotation',
   '/all-products'
 ];

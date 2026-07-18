@@ -61,4 +61,22 @@ export class FilterService {
     return this.products;
   }
 
+  applyUnifiedFilter(minPrice: number, maxPrice: number, selectedRating: number | null, checkedTypes: string[]) {
+    if (!this.cloneOfProducts) return;
+    
+    let filtered = [...this.cloneOfProducts];
+
+    filtered = filtered.filter(item => (item.price || 0) >= minPrice && (item.price || 0) <= maxPrice);
+
+    if (selectedRating !== null && selectedRating > 0) {
+      filtered = filtered.filter(item => selectedRating <= Math.trunc(item.rating?.rate || 0));
+    }
+
+    if (checkedTypes && checkedTypes.length > 0) {
+      filtered = filtered.filter(item => checkedTypes.includes(item.type));
+    }
+
+    this.filteredProducts.next(filtered);
+  }
+
 }

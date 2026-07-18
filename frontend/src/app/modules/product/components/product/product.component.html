@@ -28,7 +28,7 @@
 
 <app-skeleton *ngIf="!error && isLoading"></app-skeleton>
 
-<section class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 mb-10 bg-white mx-auto max-w-[1300px]" *ngIf="!isLoading && cloneOfProducts.length!>0">
+<section class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 mb-10 bg-white mx-auto max-w-[1300px]" *ngIf="!isLoading">
     <div class="flex justify-end pr-2 block md:hidden">
       <button class="bg-gray-800 text-gray-200 px-2" (click)="onFilter(true)">
       <i class="fa-solid fa-filter"></i>
@@ -38,7 +38,7 @@
 
     <aside 
     class="col-span-1 md:col-span-1 lg:col-span-1 mb-4
-    fixed top-0 right-0 w-[350px] md:w-auto bg-[#f8f8f8] z-[98] h-full drop-shadow-lg md:drop-shadow-none md:static hidden md:block"
+    fixed top-0 right-0 w-[350px] md:w-auto bg-[#f8f8f8] z-[98] h-full drop-shadow-lg md:drop-shadow-none md:sticky md:top-24 md:self-start md:h-auto md:bg-transparent hidden md:block"
     [ngStyle]="{'display':isFilter?'block':''}"
     >
       <app-filter 
@@ -61,7 +61,29 @@
             [product]="product"
             >
             </app-productcard>
+        </div>
 
+        <!-- Page Size Limit Selector -->
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 pt-6 border-t border-gray-100 dark:border-gray-800">
+          <p class="text-xs text-gray-500 font-medium">
+            Showing 1-{{ getMin(pageSize, allItemsFilteredCount) }} of {{ allItemsFilteredCount }} products
+          </p>
+          <div class="flex items-center gap-3">
+            <span class="text-xs font-semibold text-gray-500">Show:</span>
+            <div class="flex items-center gap-1.5">
+              <button 
+                *ngFor="let size of [10, 25, 50, 100, 200]"
+                (click)="setPageSize(size)"
+                [ngClass]="{
+                  'border-[#3c64a9] text-[#3c64a9] bg-blue-50/20 font-bold': pageSize === size,
+                  'border-gray-200 text-gray-700 hover:border-gray-300': pageSize !== size
+                }"
+                class="px-3.5 py-1.5 border rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer min-w-[38px] text-center"
+              >
+                {{ size }}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -73,7 +95,7 @@
             <path d="M504.1 452.5c-18.3 0-36.5-4.1-50.7-10.1l-280.1-138c-18.3-10.1-30.4-24.4-30.4-40.6 0-16.2 10.2-32.5 30.4-42.6L455.4 77.1c16.2-8.1 34.5-12.2 54.8-12.2 18.3 0 36.5 4.1 50.7 10.1L841 213c18.3 10.1 30.4 24.4 30.4 40.6 0 16.2-10.1 32.5-30.4 42.6L558.9 440.3c-16.3 8.1-34.5 12.2-54.8 12.2zM193.6 261.7l280.1 138c8.1 4.1 18.3 6.1 30.4 6.1 12.2 0 24.4-2 32.5-6.1l284.1-144.1-280.1-138c-8.1-4.1-18.3-6.1-30.4-6.1-12.2 0-24.4 2-32.5 6.1L193.6 261.7z m253.6 696.1c-10.1 0-20.3-2-30.4-8.1L165.1 817.8c-30.4-14.2-52.8-46.7-52.8-73.1V391.6c0-24.4 18.3-42.6 44.6-42.6 10.1 0 20.3 2 30.4 8.1L437.1 489c30.4 14.2 52.8 46.7 52.8 73.1v353.1c0 24.4-18.3 42.6-42.7 42.6z m-10.1-48.7c2 2 4.1 2 6.1 2v-349c0-8.1-10.1-24.4-26.4-32.5L165.1 397.7c-2-2-4.1-2-6.1-2v349.1c0 8.1 10.2 24.4 26.4 32.5l251.7 131.8z m144.1 48.7c-24.4 0-42.6-18.3-42.6-42.6V562.1c0-26.4 22.3-58.9 52.8-73.1L841 357.1c10.1-4.1 20.3-8.1 30.4-8.1 24.4 0 42.6 18.3 42.6 42.6v353.1c0 26.4-22.3 58.9-52.8 73.1L611.6 949.7c-12.2 6.1-20.3 8.1-30.4 8.1z m280-560.1L611.6 529.6c-16.2 8.1-26.4 24.4-26.4 32.5v349.1c2 0 4.1-2 6.1-2l249.6-131.9c16.2-8.1 26.4-24.4 26.4-32.5V395.7c-2 0-4 2-6.1 2z m0 0"  />
             </svg>
         </span>
-        <h4 class="text-md px-4 py-2">NO PRODUCTS</h4>
+        <h4 class="text-md font-semibold px-4 py-2 text-gray-400">No products found in this category</h4>
       </div>
         <!-- <nav class="flex justify-center col-span-1 mt-12 mb-6" aria-label="products pages">
           <ul class="inline-flex -space-x-px text-sm font-semibold">

@@ -5,7 +5,8 @@ import { ProductService } from '../../../services/product.service';
 import { Product } from '../../../model';
 import { CartService } from 'src/app/core/services/cart.service';
 import { Subscription, catchError, forkJoin, map, of, switchMap } from 'rxjs';
-import { ItemRecord, WebsiteItem, WebsiteItemService } from 'src/app/core/services/website-item.service';
+import { ItemRecord, PricingRuleSlab, WebsiteItem, WebsiteItemService } from 'src/app/core/services/website-item.service';
+
 
 interface DetailRow {
   label: string;
@@ -61,6 +62,11 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
   imageSrc='';
   selectedImage=0;
   discount=0;
+  qty=1;
+  selectedTier: any = null;
+  currentUnitPrice=0;
+  totalPrice=0;
+  savings=0;
   title:string='';
   detailRows: DetailRow[]=[];
   currentWebsiteItem: any = null;
@@ -72,8 +78,20 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
   erpAverageRating = 0;
   erpRatingCounts = [0, 0, 0, 0, 0];
   erpStars = [1, 2, 3, 4, 5];
+  // Pricing Rules from ERPNext
+  pricingRuleSlabs: Array<{
+    name: string; title: string;
+    minQty: number; maxQty: number;
+    discountPercentage: number;
+    price: number;      // discounted unit price
+    basePrice: number;  // original price
+    unitSavings: number;
+    uom: string;
+  }> = [];
+  selectedPricingRuleSlab: any = null;
   private fallbackImage = 'assets/images/logo.png';
   private cartSub!: Subscription;
+
 
   constructor(
     private route:ActivatedRoute,
@@ -108,6 +126,8 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
     this.erpReviews=[];
     this.erpAverageRating=0;
     this.erpRatingCounts=[0, 0, 0, 0, 0];
+    this.pricingRuleSlabs=[];
+    this.selectedPricingRuleSlab=null;
 
     if (/^\d+$/.test(String(identifier))) {
       this.loadLegacyProduct(Number(identifier));
@@ -154,13 +174,24 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
         }).pipe(
           switchMap(({ item, reviews, sellingPrice }) => {
             console.log('🔍 Item fetched from API:', item);
+            // Use actual item_code from Item document (more reliable than websiteItem.item_code)
+            const actualItemCode = item?.item_code || item?.name || itemCode;
+            console.log('🔑 Fetching pricing rules for item code:', actualItemCode);
+            const pricingRules$ = this.websiteItemService.getPricingRules(actualItemCode)
+              .pipe(catchError(() => of([] as PricingRuleSlab[])));
+
             if (item?.has_variants) {
-              return this.websiteItemService.getVariantsWithPrices(item.name).pipe(
-                map(variants => ({ websiteItem, item, reviews, sellingPrice, variants })),
-                catchError(() => of({ websiteItem, item, reviews, sellingPrice, variants: [] }))
+              return forkJoin({
+                variants: this.websiteItemService.getVariantsWithPrices(item.name).pipe(catchError(() => of([]))),
+                pricingRules: pricingRules$
+              }).pipe(
+                map(({ variants, pricingRules }) => ({ websiteItem, item, reviews, sellingPrice, pricingRules, variants })),
+                catchError(() => of({ websiteItem, item, reviews, sellingPrice, pricingRules: [] as PricingRuleSlab[], variants: [] }))
               );
             }
-            return of({ websiteItem, item, reviews, sellingPrice, variants: [] });
+            return pricingRules$.pipe(
+              map(pricingRules => ({ websiteItem, item, reviews, sellingPrice, pricingRules, variants: [] }))
+            );
           })
         );
       }),
@@ -196,6 +227,9 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
       this.relatedProductList = [];
       this.variants = result.variants || [];
 
+      // Build pricing rule slabs from ERPNext Pricing Rules
+      this.buildPricingRuleSlabs((result as any).pricingRules || [], this.product.price, this.erpUom);
+
       if (this.variants.length > 0) {
         this.onVariantSelect(this.variants[0]);
       }
@@ -208,8 +242,102 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
       console.log('🧾 ERP Review Docs:', result.reviews);
       console.log('⭐ ERP Reviews:', this.erpReviews);
 
+      console.log('⭐ ERP Reviews:', this.erpReviews);
+
+      this.calculatePricing();
       this.isLoading = false;
     });
+  }
+
+  // Build display slabs from ERPNext Pricing Rules
+  buildPricingRuleSlabs(rules: PricingRuleSlab[], basePrice: number, uom: string): void {
+    this.pricingRuleSlabs = rules
+      .filter(r => r.discountPercentage > 0 || r.fixedPrice > 0)
+      .map(r => {
+        const discPct = r.discountPercentage;
+        let price: number;
+        if (r.fixedPrice > 0) {
+          price = r.fixedPrice;
+        } else if (discPct > 0 && basePrice > 0) {
+          price = Math.round(basePrice * (1 - discPct / 100));
+        } else {
+          price = basePrice;
+        }
+        return {
+          name: r.name,
+          title: r.title,
+          minQty: r.minQty,
+          maxQty: r.maxQty,
+          discountPercentage: discPct,
+          price,
+          basePrice,
+          unitSavings: basePrice - price,
+          uom: r.uom || uom
+        };
+      })
+      .sort((a, b) => a.minQty - b.minQty);
+    console.log('💰 Pricing Rule Slabs:', this.pricingRuleSlabs);
+
+    // If we have a flat discount rule (minQty=0, maxQty=0) trigger pricing recalc
+    this.calculatePricing();
+  }
+
+  calculatePricing(): void {
+    if (!this.product) return;
+    
+    // Reset
+    this.selectedTier = null;
+    this.selectedPricingRuleSlab = null;
+    this.currentUnitPrice = this.product.price;
+    
+    // 1. Check custom wholesale pricing tiers (custom_wholesale_pricing field)
+    if (this.product.wholesale_pricing_tiers && this.product.wholesale_pricing_tiers.length > 0) {
+      const sortedTiers = [...this.product.wholesale_pricing_tiers].sort((a, b) => a.minimum_quantity - b.minimum_quantity);
+      for (const tier of sortedTiers) {
+        if (this.qty >= tier.minimum_quantity && (tier.maximum_quantity === 0 || this.qty <= tier.maximum_quantity)) {
+          this.selectedTier = tier;
+          this.currentUnitPrice = tier.price;
+        }
+      }
+    }
+
+    // 2. Check ERPNext Pricing Rules (takes precedence if both exist)
+    if (this.pricingRuleSlabs.length > 0) {
+      for (const slab of this.pricingRuleSlabs) {
+        if (this.qty >= slab.minQty && (slab.maxQty === 0 || this.qty <= slab.maxQty)) {
+          this.selectedPricingRuleSlab = slab;
+          this.currentUnitPrice = slab.price;
+        }
+      }
+    }
+    
+    this.totalPrice = this.currentUnitPrice * this.qty;
+    
+    const basePriceToCompare = this.product.mrp && this.product.mrp > 0 ? this.product.mrp : this.product.price;
+    this.savings = basePriceToCompare > this.currentUnitPrice
+      ? (basePriceToCompare - this.currentUnitPrice) * this.qty
+      : 0;
+  }
+
+  increaseQty(): void {
+    this.qty++;
+    this.calculatePricing();
+  }
+
+  decreaseQty(): void {
+    if (this.qty > 1) {
+      this.qty--;
+      this.calculatePricing();
+    }
+  }
+
+  onQtyChange(event: any): void {
+    let value = parseInt(event.target.value, 10);
+    if (isNaN(value) || value < 1) {
+      value = 1;
+    }
+    this.qty = value;
+    this.calculatePricing();
   }
 
   private toErpProduct(websiteItem: WebsiteItem, item: ItemRecord | null, sellingPrice = 0): Product {
@@ -233,11 +361,19 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
       sizes: [],
       images: images.length > 0 ? images : [this.fallbackImage],
       stock: item?.disabled ? 'Out of stock' : 'In stock',
-      price: Number(item?.standard_rate ?? 0) || Number(sellingPrice ?? 0),
+      price: Number(sellingPrice ?? 0) || Number(item?.standard_rate ?? 0),
       prevprice: Number((item as any)?.custom_mrp) || Number((websiteItem as any)?.custom_mrp) || Number((item as any)?.mrp) || 0,
       mrp: Number((item as any)?.custom_mrp) || Number((websiteItem as any)?.custom_mrp) || Number((item as any)?.mrp) || 0,
       pack_size: (item as any)?.custom_pack_size_ || (websiteItem as any)?.custom_pack_size_ || '',
       shelf_life_in_days: Number((item as any)?.shelf_life_in_days ?? (websiteItem as any)?.shelf_life_in_days ?? 0),
+      wholesale_pricing_tiers: (item?.custom_wholesale_pricing || []).map((tier: any) => ({
+        minimum_quantity: Number(tier.minimum_quantity || 0),
+        maximum_quantity: Number(tier.maximum_quantity || 0),
+        unit: tier.unit,
+        price: Number(tier.price || 0),
+        discount_: Number(tier.discount_ || 0),
+        active: Number(tier.active || 0)
+      })),
       rating: {
         rate: 0,
         count: 0
@@ -293,7 +429,7 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
       this.setErpReviewStats(this.erpReviews);
     } else {
       // Fallback optimistic update
-      this.product.price = Number(item?.standard_rate ?? 0) || Number(sellingPrice ?? 0);
+      this.product.price = Number(sellingPrice ?? 0) || Number(item?.standard_rate ?? 0);
       this.product.mrp = Number((item as any)?.custom_mrp) || Number((item as any)?.mrp) || 0;
       this.product.pack_size = (item as any)?.custom_pack_size_ || '';
       this.product.stock = item?.disabled ? 'Out of stock' : 'In stock';
@@ -785,7 +921,8 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
     this.ratingList=this.productService.getRatingStar(this.product);
   }
   addToCart(product:Product){
-    this.cartService.add(product);
+    const cartProduct = { ...product, qty: this.qty, price: this.currentUnitPrice };
+    this.cartService.add(cartProduct);
   }
   removeFromCart(product:Product){
     this.cartService.remove(product);

@@ -1,6 +1,14 @@
+export interface WholesalePricingTier {
+    minimum_quantity: number;
+    maximum_quantity: number;
+    unit?: string;
+    price: number;
+    discount_: number;
+    active: number;
+}
 
 export interface Product {
-    id:number;
+    id:string|number;
     title:string;
     description: string;
     category: string;
@@ -20,6 +28,13 @@ export interface Product {
     variant_of?: string;
     has_variants?: boolean;
     item_code?: string;
+    wholesale_pricing_tiers?: WholesalePricingTier[];
+    erpRemainingShelfLifeInDays?: number;
+    published?: boolean;
+    modified?: string | Date;
+    stock_uom?: string;
+    erpDiscountedPrice?: number;
+    erpDiscountPct?: number;
     rating: {
       rate: number;
       count: number;
