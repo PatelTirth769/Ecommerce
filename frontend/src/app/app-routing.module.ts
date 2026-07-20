@@ -12,6 +12,7 @@ import { ProductMasterComponent } from './features/product-master/product-master
 import { BuyerProfileComponent } from './features/buyer-profile/buyer-profile.component';
 import { WishlistComponent } from './features/wishlist/wishlist.component';
 import { ComingSoonComponent } from './features/coming-soon/coming-soon.component';
+import { OrderConfirmationComponent } from './features/order-confirmation/order-confirmation.component';
 
 const routes: Routes = [
   {
@@ -67,6 +68,11 @@ const routes: Routes = [
   {
     path: 'profile',
     component: BuyerProfileComponent,
+    canActivate:[canActivate]
+  },
+  {
+    path: 'order-confirmation/:razorpayOrderId',
+    component: OrderConfirmationComponent,
     canActivate:[canActivate]
   },
   {

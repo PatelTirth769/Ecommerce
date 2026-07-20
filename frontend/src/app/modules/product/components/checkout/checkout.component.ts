@@ -112,9 +112,24 @@ export class CheckoutComponent implements OnInit {
 
     this.toastService.showInfo('Initializing secure payment gateway...');
 
+    const orderMeta = {
+      buyer_email: this.shippingForm.value.email,
+      quotation_name: this.cartService.getCurrentQuotationName(),
+      shipping_form: { ...this.shippingForm.value },
+      items: this.cartService.getCart.map(item => ({
+        title: item.title,
+        item_code: item.item_code,
+        qty: item.qty,
+        price: item.price
+      }))
+    };
+
+    console.log('%c[1/6] Checkout started - POST /api/payment/create-order', 'color:#3c64a9;font-weight:bold', { grandTotal: this.grandTotal, orderMeta });
+
     // Call backend to create Razorpay Order
-    this.paymentService.createOrder(this.grandTotal).subscribe({
+    this.paymentService.createOrder(this.grandTotal, orderMeta).subscribe({
       next: (res) => {
+        console.log('%c[1/6] Razorpay order created', 'color:#3c64a9;font-weight:bold', res);
         const options: any = {
           key: environment.razorpayKey,
           amount: res.amount,
@@ -123,6 +138,7 @@ export class CheckoutComponent implements OnInit {
           description: 'E-commerce Checkout Purchase',
           order_id: res.id,
           handler: (response: any) => {
+            console.log('%c[2/6] Razorpay checkout popup succeeded', 'color:#22863a;font-weight:bold', response);
             this.verifyAndCompletePayment(response);
           },
           prefill: {
@@ -151,7 +167,7 @@ export class CheckoutComponent implements OnInit {
   }
 
   verifyAndCompletePayment(response: any): void {
-    this.toastService.showInfo('Verifying payment signature...');
+    this.toastService.showInfo('Verifying payment and finalizing your order...');
 
     const verificationData = {
       razorpay_payment_id: response.razorpay_payment_id,
@@ -159,52 +175,27 @@ export class CheckoutComponent implements OnInit {
       razorpay_signature: response.razorpay_signature
     };
 
-    // Verify payment in backend
-    this.paymentService.verifyPayment(verificationData).subscribe({
-      next: (verifyRes) => {
-        if (verifyRes && verifyRes.success) {
-          // Payment successfully verified. Now save order to Firestore
-          const orderData = {
-            orderId: response.razorpay_order_id,
-            paymentId: response.razorpay_payment_id,
-            email: this.shippingForm.value.email,
-            shippingAddress: { ...this.shippingForm.value },
-            items: this.cartService.getCart.map(item => ({
-              title: item.title,
-              item_code: item.item_code,
-              qty: item.qty,
-              price: item.price,
-              totalprice: item.totalprice,
-              image: item.images?.[0] || ''
-            })),
-            subtotal: this.total,
-            tax: this.gstAmount,
-            shippingCost: this.shippingCost,
-            discount: this.discountAmount,
-            totalAmount: this.grandTotal,
-            status: 'Paid'
-          };
+    console.log('%c[3/6] POST /api/payment/complete - verifying signature + starting ERPNext sync', 'color:#3c64a9;font-weight:bold', verificationData);
 
-          this.paymentService.saveOrder(orderData).subscribe({
-            next: () => {
-              this.toastService.showSuccess('Payment Successful and Order Placed!');
-              this.cartService.clearCart();
-              this.router.navigate(['/buyer-profile']);
-            },
-            error: (saveErr) => {
-              console.error('Failed to save order details:', saveErr);
-              // Order is paid but firestore save failed. We still redirect but warn the user.
-              this.toastService.showWarning('Payment succeeded, but order logging failed. Please contact support.');
-              this.cartService.clearCart();
-              this.router.navigate(['/buyer-profile']);
-            }
-          });
+    // Backend verifies the signature, then drives the ERPNext
+    // Sales Order -> Sales Invoice -> Payment Entry sync. Order contents are
+    // derived server-side from ERPNext, not from this client payload.
+    this.paymentService.completePayment(verificationData).subscribe({
+      next: (result) => {
+        console.log('%c[4/6] /api/payment/complete response', 'color:#3c64a9;font-weight:bold', result);
+        if (result && result.success) {
+          console.log(`%c[5/6] syncStatus = "${result.syncStatus}"`, 'color:#3c64a9;font-weight:bold', result.erpnext || '(sync still running server-side, confirmation page will poll)');
+          this.toastService.showSuccess('Payment Successful!');
+          this.cartService.clearCart();
+          console.log('%c[6/6] Navigating to order-confirmation page', 'color:#3c64a9;font-weight:bold', response.razorpay_order_id);
+          this.router.navigate(['/order-confirmation', response.razorpay_order_id]);
         } else {
+          console.error('[complete] Payment verification failed', result);
           this.toastService.showError('Payment verification failed.');
         }
       },
-      error: (verifyErr) => {
-        console.error('Payment verification request failed:', verifyErr);
+      error: (err) => {
+        console.error('[complete] Payment completion request failed:', err);
         this.toastService.showError('Payment verification failed. Please contact support.');
       }
     });

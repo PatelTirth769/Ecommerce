@@ -1,0 +1,22 @@
+rules_version = '2';
+
+// Deny all direct client (Angular app / raw Firebase SDK) access to payment
+// and order records. Only the backend, using the Firebase Admin SDK (which
+// bypasses these rules entirely), may read or write these collections. This
+// is required because the backend now writes proof-of-payment and generated
+// invoice references here for every checkout attempt, success or failure.
+//
+// This file is NOT auto-deployed by editing it - deploy with:
+//   firebase deploy --only firestore:rules
+// (requires the Firebase CLI logged into the project that owns FIREBASE_PROJECT_ID).
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Covers ecommerce_system/metadata/payments/{paymentId} (and its
+    // events subcollection) - the recursive wildcard also locks down any
+    // other data nested under ecommerce_system, including the legacy
+    // client-SDK order-logging path this replaced.
+    match /ecommerce_system/{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

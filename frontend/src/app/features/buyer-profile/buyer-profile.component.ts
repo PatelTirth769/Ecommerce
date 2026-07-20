@@ -110,6 +110,14 @@ export class BuyerProfileComponent implements OnInit {
     this.activeTab = tab;
   }
 
+  getInvoiceUrl(razorpayOrderId: string): string {
+    return this.paymentService.getInvoiceDownloadUrl(razorpayOrderId);
+  }
+
+  getPaymentEntryUrl(razorpayOrderId: string): string {
+    return this.paymentService.getPaymentEntryDownloadUrl(razorpayOrderId);
+  }
+
   togglePasswordVisibility(): void {
     this.showPassword = !this.showPassword;
   }

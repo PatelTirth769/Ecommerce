@@ -205,6 +205,11 @@ export class CartService {
     return localStorage.getItem(this.cartStorageKey);
   }
 
+  /** Public accessor so checkout can attach the current cart's Quotation to a payment. */
+  getCurrentQuotationName(): string | null {
+    return this.getStoredQuotationName();
+  }
+
   private setStoredQuotationName(name: string | null): void {
     if (name) {
       localStorage.setItem(this.cartStorageKey, name);

@@ -26,6 +26,7 @@ import { AngularFirestoreModule } from '@angular/fire/compat/firestore';
 import { WishlistComponent } from './features/wishlist/wishlist.component';
 import { ProductModule } from './modules/product/product.module';
 import { ComingSoonComponent } from './features/coming-soon/coming-soon.component';
+import { OrderConfirmationComponent } from './features/order-confirmation/order-confirmation.component';
 
 @NgModule({
   declarations: [
@@ -44,7 +45,8 @@ import { ComingSoonComponent } from './features/coming-soon/coming-soon.componen
     ProductMasterComponent,
     BuyerProfileComponent,
     WishlistComponent,
-    ComingSoonComponent
+    ComingSoonComponent,
+    OrderConfirmationComponent
   ],
   imports: [
     BrowserModule,

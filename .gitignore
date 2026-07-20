@@ -37,6 +37,9 @@ firebase-debug.log
 
 # Misc
 .env
+.env.*
+!.env.example
+backend/secrets/
 .stackblitzrc
 
 # Seller Portal
