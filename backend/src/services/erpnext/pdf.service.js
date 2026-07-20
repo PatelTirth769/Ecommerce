@@ -5,7 +5,9 @@ async function downloadSalesInvoicePdf(salesInvoiceName) {
 }
 
 async function downloadPaymentEntryPdf(paymentEntryName) {
-  return client.downloadPdf('Payment Entry', paymentEntryName);
+  return client.downloadPdf('Payment Entry', paymentEntryName, {
+    options: JSON.stringify({ orientation: 'Landscape' })
+  });
 }
 
 module.exports = {

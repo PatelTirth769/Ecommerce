@@ -5,6 +5,11 @@ async function createSalesInvoiceFromSalesOrder(salesOrderName) {
     'erpnext.selling.doctype.sales_order.sales_order.make_sales_invoice',
     { source_name: salesOrderName }
   );
+  
+  if (!draft.due_date) {
+    draft.due_date = new Date().toISOString().slice(0, 10); // Default to today
+  }
+  
   return client.createResource('Sales Invoice', draft);
 }
 
