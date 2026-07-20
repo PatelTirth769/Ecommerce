@@ -44,3 +44,11 @@ SellerPortel/
 
 # Partner Portal
 PartnerPortel/
+
+# ERP Repository
+sales24-7_erp-main/
+
+# Archives & Large Files
+SellerPortel.zip
+*.zip
+
