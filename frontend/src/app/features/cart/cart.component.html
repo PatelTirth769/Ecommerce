@@ -37,12 +37,12 @@
         <div class="flex flex-col">
             <div class="flex-1">
                 <label for="promo-code" class="font-semibold text-gray-600">ENTER PROMO CODE</label>
-                <div class="flex flex-1 sm:flex-col lg:flex-row border border-gray-600">
+                <div class="flex flex-col sm:flex-row border border-gray-600">
                     <input
                         type="text"
                         name="promo-code"
                         [(ngModel)]="promoCode"
-                        class="p-4 w-full"
+                        class="p-4 w-full sm:flex-1 sm:w-auto"
                         placeholder="Enter coupon code">
                     <button
                         type="button"
