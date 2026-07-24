@@ -334,7 +334,7 @@
                       {{ order.payment_entry_no || '—' }}
                     </div>
                   </div>
-                  <div class="flex gap-3">
+                  <div class="flex flex-wrap gap-3">
                     <a *ngIf="order.invoice_pdf_available" [href]="getInvoiceUrl(order.razorpay_order_id)" target="_blank"
                        class="px-3 py-1.5 bg-gray-900 text-white rounded-md text-xs font-semibold hover:bg-gray-800 transition-all">
                       Download Invoice

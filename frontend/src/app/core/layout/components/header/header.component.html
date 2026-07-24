@@ -107,6 +107,29 @@
               {{menu.title}}
             </a>
           </li>
+          <li>
+            <a
+              [routerLink]="['/shopping-cart']"
+              [routerLinkActive]="['bg-blue-50', 'text-blue-600', 'dark:bg-blue-900/20']"
+              class="flex items-center justify-between px-4 py-3 rounded-xl text-gray-700 dark:text-gray-300 font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
+              (click)="closeMenu()"
+            >
+              <span><i class="fa-solid fa-bag-shopping mr-3"></i>My Cart</span>
+              <span *ngIf="cart.length>0" class="w-5 h-5 bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center rounded-full">
+                {{cart.length}}
+              </span>
+            </a>
+          </li>
+          <li>
+            <a
+              [routerLink]="['/wishlist']"
+              [routerLinkActive]="['bg-blue-50', 'text-blue-600', 'dark:bg-blue-900/20']"
+              class="flex items-center px-4 py-3 rounded-xl text-gray-700 dark:text-gray-300 font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
+              (click)="closeMenu()"
+            >
+              <i class="fa-regular fa-heart mr-3"></i>Wishlist
+            </a>
+          </li>
         </ul>
 
         <div class="mt-8 pt-8 border-t border-gray-100 dark:border-gray-800">
