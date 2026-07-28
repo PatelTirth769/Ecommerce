@@ -13,6 +13,7 @@ import { BuyerProfileComponent } from './features/buyer-profile/buyer-profile.co
 import { WishlistComponent } from './features/wishlist/wishlist.component';
 import { ComingSoonComponent } from './features/coming-soon/coming-soon.component';
 import { OrderConfirmationComponent } from './features/order-confirmation/order-confirmation.component';
+import { ForgotPasswordComponent } from './features/forgot-password/forgot-password.component';
 
 const routes: Routes = [
   {
@@ -29,6 +30,10 @@ const routes: Routes = [
     path:'register',
     component:RegisterComponent,
     // canActivate:[canActivate]
+  },
+  {
+    path:'forgot-password',
+    component:ForgotPasswordComponent
   },
   {
     path:'products',

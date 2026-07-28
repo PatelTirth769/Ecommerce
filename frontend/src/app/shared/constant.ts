@@ -28,10 +28,7 @@ export const MENU:{
         title:'Categories',
         path:'/categories'
     },
-    {
-        title:'Store List',
-        path:'/store-list'
-    },
+
     {
         title:'All Product',
         path:'/product-master'

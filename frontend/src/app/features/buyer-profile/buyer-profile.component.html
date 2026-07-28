@@ -1,4 +1,4 @@
-<div class="erp-profile-page bg-[#f4f5f6] min-h-screen p-6 font-sans">
+<div class="erp-profile-page bg-[#f4f5f6] min-h-screen p-3 md:p-6 font-sans">
   <ng-container *ngIf="(profileData$ | async) as profile; else loading">
     
     <!-- ERPNext Style Header -->
@@ -16,7 +16,7 @@
       </div>
 
       <!-- ERPNext Style Tabs -->
-      <div class="flex gap-8 px-6 border-b border-gray-200 overflow-x-auto">
+      <div class="flex gap-4 md:gap-8 px-4 md:px-6 border-b border-gray-200 overflow-x-auto whitespace-nowrap">
         <div 
           (click)="switchTab('details')"
           [ngClass]="activeTab === 'details' ? 'border-b-2 border-gray-900 text-gray-900 font-semibold' : 'text-gray-500 border-transparent hover:text-gray-700'"
@@ -29,6 +29,12 @@
           class="tab-item py-3 text-sm cursor-pointer border-b-2 transition-all">
           Orders
         </div>
+        <div 
+          (click)="switchTab('addresses')"
+          [ngClass]="activeTab === 'addresses' ? 'border-b-2 border-gray-900 text-gray-900 font-semibold' : 'text-gray-500 border-transparent hover:text-gray-700'"
+          class="tab-item py-3 text-sm cursor-pointer border-b-2 transition-all">
+          Addresses
+        </div>
         <div *ngIf="profile.module_profile === 'seller'"
           (click)="switchTab('business')"
           [ngClass]="activeTab === 'business' ? 'border-b-2 border-gray-900 text-gray-900 font-semibold' : 'text-gray-500 border-transparent hover:text-gray-700'"
@@ -37,7 +43,7 @@
         </div>
       </div>
 
-      <div class="p-8">
+      <div class="p-4 md:p-8">
         <!-- User Details Tab Content -->
         <div *ngIf="activeTab === 'details'">
           <!-- Enabled Toggle -->
@@ -51,7 +57,7 @@
             <h3 class="text-md font-bold text-gray-900 mb-6">Basic Info</h3>
             
             <!-- READ ONLY FOR BUYERS -->
-            <div *ngIf="profile.module_profile !== 'seller'" class="grid grid-cols-1 md:grid-cols-3 gap-x-12 gap-y-6">
+            <div *ngIf="profile.module_profile !== 'seller'" class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-x-12 md:gap-y-6">
               <!-- Col 1 -->
               <div class="space-y-6">
                 <div>
@@ -125,7 +131,7 @@
 
             <!-- EDITABLE FORM FOR SELLERS -->
             <form *ngIf="profile.module_profile === 'seller'" [formGroup]="basicInfoForm" (ngSubmit)="saveBasicInfo()">
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-x-12 gap-y-6">
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-x-12 md:gap-y-6">
                 <!-- Col 1 -->
                 <div class="space-y-6">
                   <div>
@@ -476,6 +482,152 @@
               </div>
             </div>
           </form>
+        </div>
+
+        <!-- Addresses Tab Content -->
+        <div *ngIf="activeTab === 'addresses'">
+          <div class="flex justify-between items-center mb-6">
+            <h3 class="text-md font-bold text-gray-900">Addresses</h3>
+            <button (click)="showAddAddressForm = true" *ngIf="!showAddAddressForm" class="bg-gray-900 text-white px-4 py-2 rounded-md text-xs font-bold hover:bg-gray-800 transition-colors">
+              + New Address
+            </button>
+            <button (click)="showAddAddressForm = false" *ngIf="showAddAddressForm" class="text-gray-600 text-xs hover:text-gray-900 font-bold">
+              Cancel
+            </button>
+          </div>
+
+          <div *ngIf="!showAddAddressForm" class="space-y-4">
+            <ng-container *ngIf="(addresses$ | async) as addresses">
+              <div *ngIf="addresses.length === 0" class="flex flex-col items-center justify-center py-12 text-gray-500">
+                <i class="fa-solid fa-map-location-dot text-4xl mb-4 text-gray-300"></i>
+                <p class="text-sm font-semibold">No addresses found</p>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div *ngFor="let addr of addresses" class="bg-white border border-gray-200 rounded-lg p-5 shadow-sm relative">
+                  <div class="flex justify-between items-start mb-2">
+                    <h4 class="font-bold text-gray-900 text-sm">{{ addr.address_title }}</h4>
+                    <div class="flex gap-2 items-center">
+                      <span class="text-[10px] uppercase font-bold px-2 py-1 bg-gray-100 text-gray-600 rounded">{{ addr.address_type }}</span>
+                      <button (click)="editAddress(addr)" type="button" class="text-gray-400 hover:text-gray-900 transition-colors cursor-pointer p-1" title="Edit Address">
+                        <i class="fa-solid fa-pen text-xs"></i>
+                      </button>
+                    </div>
+                  </div>
+                  <p class="text-xs text-gray-600">{{ addr.address_line1 }}</p>
+                  <p class="text-xs text-gray-600" *ngIf="addr.address_line2">{{ addr.address_line2 }}</p>
+                  <p class="text-xs text-gray-600">{{ addr.city }}<span *ngIf="addr.state">, {{ addr.state }}</span></p>
+                  <p class="text-xs text-gray-600 mb-2">{{ addr.country }} - {{ addr.pincode }}</p>
+                  
+                  <div class="flex flex-wrap gap-x-4 gap-y-1 mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500">
+                    <span *ngIf="addr.email_id"><i class="fa-solid fa-envelope mr-1"></i> {{ addr.email_id }}</span>
+                    <span *ngIf="addr.phone"><i class="fa-solid fa-phone mr-1"></i> {{ addr.phone }}</span>
+                  </div>
+                  
+                  <div class="flex gap-2 mt-3" *ngIf="addr.is_primary_address || addr.is_shipping_address">
+                    <span *ngIf="addr.is_primary_address" class="text-[9px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-100 uppercase tracking-wider font-bold">Preferred Billing</span>
+                    <span *ngIf="addr.is_shipping_address" class="text-[9px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-100 uppercase tracking-wider font-bold">Preferred Shipping</span>
+                  </div>
+                </div>
+              </div>
+            </ng-container>
+          </div>
+
+          <div *ngIf="showAddAddressForm" class="bg-white border border-gray-200 rounded-lg p-4 md:p-6 animate-fade-in shadow-sm">
+            <h4 class="text-sm font-bold text-gray-800 mb-6 pb-2 border-b border-gray-100">
+              {{ editingAddressName ? 'Edit Address' : 'New Address' }}
+            </h4>
+            
+            <form [formGroup]="addressForm" (ngSubmit)="saveAddress()" class="space-y-6">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Title & Type -->
+                <div>
+                  <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Address Title *</label>
+                  <input type="text" formControlName="address_title" class="w-full bg-[#f9fafb] border border-gray-200 rounded-md px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400">
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Address Type *</label>
+                  <select formControlName="address_type" class="w-full bg-[#f9fafb] border border-gray-200 rounded-md px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400">
+                    <option value="Billing">Billing</option>
+                    <option value="Shipping">Shipping</option>
+                    <option value="Office">Office</option>
+                    <option value="Personal">Personal</option>
+                    <option value="Plant">Plant</option>
+                    <option value="Postal">Postal</option>
+                    <option value="Shop">Shop</option>
+                    <option value="Subsidiary">Subsidiary</option>
+                    <option value="Warehouse">Warehouse</option>
+                    <option value="Current">Current</option>
+                    <option value="Permanent">Permanent</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                
+                <!-- Address Lines -->
+                <div>
+                  <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Address Line 1 *</label>
+                  <input type="text" formControlName="address_line1" class="w-full bg-[#f9fafb] border border-gray-200 rounded-md px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400">
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Address Line 2</label>
+                  <input type="text" formControlName="address_line2" class="w-full bg-[#f9fafb] border border-gray-200 rounded-md px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400">
+                </div>
+                
+                <!-- City & State -->
+                <div>
+                  <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">City / Town *</label>
+                  <input type="text" formControlName="city" class="w-full bg-[#f9fafb] border border-gray-200 rounded-md px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400">
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">State / Province</label>
+                  <input type="text" formControlName="state" class="w-full bg-[#f9fafb] border border-gray-200 rounded-md px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400">
+                </div>
+                
+                <!-- Country & Pincode -->
+                <div>
+                  <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Country *</label>
+                  <input type="text" formControlName="country" class="w-full bg-[#f9fafb] border border-gray-200 rounded-md px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400">
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Postal Code</label>
+                  <input type="text" formControlName="pincode" class="w-full bg-[#f9fafb] border border-gray-200 rounded-md px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400">
+                </div>
+
+              </div>
+
+              <div class="mt-4 pt-4 border-t border-gray-100 flex flex-col gap-3">
+                <div class="flex items-center gap-3">
+                  <input type="checkbox" formControlName="is_primary_address" class="w-4 h-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900">
+                  <label class="text-sm font-semibold text-gray-700">Preferred Billing Address</label>
+                </div>
+                <div class="flex items-center gap-3">
+                  <input type="checkbox" formControlName="is_shipping_address" class="w-4 h-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900">
+                  <label class="text-sm font-semibold text-gray-700">Preferred Shipping Address</label>
+                </div>
+                <div class="flex items-center gap-3">
+                  <input type="checkbox" formControlName="disabled" class="w-4 h-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900">
+                  <label class="text-sm font-semibold text-gray-700">Disabled</label>
+                </div>
+              </div>
+
+              <!-- Submit Button & Alerts -->
+              <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 pt-4 border-t border-gray-100">
+                <button type="button" (click)="cancelEditAddress()" class="w-full sm:w-auto bg-gray-100 text-gray-700 px-6 py-2.5 sm:py-2 rounded-md text-sm font-bold hover:bg-gray-200 transition-colors">
+                  Cancel
+                </button>
+                <button type="submit" [disabled]="isSavingAddress || addressForm.invalid" class="w-full sm:w-auto bg-gray-900 text-white px-6 py-2.5 sm:py-2 rounded-md text-sm font-bold hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                  <span *ngIf="isSavingAddress"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Saving...</span>
+                  <span *ngIf="!isSavingAddress">Save Address</span>
+                </button>
+                
+                <div *ngIf="addressSaveSuccess" class="text-green-600 text-sm font-bold flex items-center justify-center sm:justify-start gap-2">
+                  <i class="fa-solid fa-circle-check"></i> Address saved successfully!
+                </div>
+                <div *ngIf="addressSaveError" class="text-red-600 text-sm font-bold flex items-center justify-center sm:justify-start gap-2">
+                  <i class="fa-solid fa-circle-exclamation"></i> {{ addressSaveError }}
+                </div>
+              </div>
+            </form>
+          </div>
         </div>
 
       </div>

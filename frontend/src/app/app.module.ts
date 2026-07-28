@@ -27,6 +27,7 @@ import { WishlistComponent } from './features/wishlist/wishlist.component';
 import { ProductModule } from './modules/product/product.module';
 import { ComingSoonComponent } from './features/coming-soon/coming-soon.component';
 import { OrderConfirmationComponent } from './features/order-confirmation/order-confirmation.component';
+import { ForgotPasswordComponent } from './features/forgot-password/forgot-password.component';
 
 @NgModule({
   declarations: [
@@ -46,7 +47,8 @@ import { OrderConfirmationComponent } from './features/order-confirmation/order-
     BuyerProfileComponent,
     WishlistComponent,
     ComingSoonComponent,
-    OrderConfirmationComponent
+    OrderConfirmationComponent,
+    ForgotPasswordComponent
   ],
   imports: [
     BrowserModule,

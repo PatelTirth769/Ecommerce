@@ -314,17 +314,20 @@ export class CartService {
   private updateTotalsFromQuotation(quotation: QuotationRecord, fallbackProducts: Product[]): void {
     const fallbackSubtotal = fallbackProducts.reduce((sum, item) => sum + this.toNumber(item.totalprice), 0);
 
-    const netTotal = this.firstPositive(
-      quotation.net_total,
-      quotation.total,
-      fallbackSubtotal
-    );
+    const serverNetTotal = this.firstPositive(quotation.net_total, quotation.total, 0);
+    // If the server's net_total differs from our local fallback by more than 1,
+    // the server is missing the price of some items (e.g. rate 0). Trust local totals!
+    const useLocalTotals = serverNetTotal === 0 || Math.abs(serverNetTotal - fallbackSubtotal) > 1;
 
-    const gst = this.firstPositive(
-      quotation.total_taxes_and_charges,
-      quotation.tax_amount,
-      fallbackSubtotal * 0.18
-    );
+    const netTotal = useLocalTotals ? fallbackSubtotal : serverNetTotal;
+
+    const gst = useLocalTotals 
+      ? fallbackSubtotal * 0.18 
+      : this.firstPositive(
+          quotation.total_taxes_and_charges,
+          quotation.tax_amount,
+          fallbackSubtotal * 0.18
+        );
 
     const shipping = this.firstFinite(
       quotation.shipping_rule_amount,
@@ -341,11 +344,13 @@ export class CartService {
       0
     );
 
-    const grandTotal = this.firstPositive(
-      quotation.grand_total,
-      quotation.rounded_total,
-      netTotal + gst + shipping - discount
-    );
+    const grandTotal = useLocalTotals 
+      ? (netTotal + gst + shipping - discount)
+      : this.firstPositive(
+          quotation.grand_total,
+          quotation.rounded_total,
+          netTotal + gst + shipping - discount
+        );
 
     this.totalAmount.next(netTotal);
     this.gstAmount.next(gst);
@@ -353,22 +358,24 @@ export class CartService {
     const taxesArray: TaxDetail[] = [];
     let hasPositiveTax = false;
     if (quotation.taxes && Array.isArray(quotation.taxes) && quotation.taxes.length > 0) {
-      quotation.taxes.forEach((t: any) => {
-        const taxAmt = Number(t.tax_amount || 0);
-        if (taxAmt > 0) hasPositiveTax = true;
-        taxesArray.push({
-          description: String(t.description || t.account_head || 'Taxes'),
-          amount: taxAmt
-        });
-      });
+      if (useLocalTotals && quotation.taxes.length === 1) {
+         const desc = String(quotation.taxes[0]['description'] || quotation.taxes[0]['account_head'] || 'Taxes');
+         taxesArray.push({ description: desc, amount: gst });
+         hasPositiveTax = true;
+      } else if (!useLocalTotals) {
+         quotation.taxes.forEach((t: any) => {
+           const taxAmt = Number(t.tax_amount || 0);
+           if (taxAmt > 0) hasPositiveTax = true;
+           taxesArray.push({
+             description: String(t.description || t.account_head || 'Taxes'),
+             amount: taxAmt
+           });
+         });
+      }
     }
 
     if (!hasPositiveTax) {
-      if (taxesArray.length === 1) {
-        taxesArray[0].amount = gst;
-      } else if (taxesArray.length === 0) {
-        taxesArray.push({ description: 'Taxes', amount: gst });
-      }
+      taxesArray.push({ description: 'Taxes', amount: gst });
     }
     this.appliedTaxes.next(taxesArray);
     
@@ -866,9 +873,19 @@ export class CartService {
     const existingIndex = this.cart.findIndex((cartItem) => this.getCartKey(cartItem) === normalizedKey);
     const existingItem = existingIndex >= 0 ? this.cart[existingIndex] : null;
 
-    const finalRate = rate > 0 ? rate : (existingItem ? Number(existingItem.price || 0) : 0);
-    const finalAmount = rate > 0 ? amount : finalRate * qty;
+    let finalRate = rate > 0 ? rate : (existingItem ? Number(existingItem.price || 0) : 0);
     const finalPriceListRate = priceListRate > 0 ? priceListRate : (existingItem ? Number(existingItem.prevprice || 0) : finalRate);
+    
+    if (existingItem && (existingItem.pricingRuleSlabs || existingItem.wholesale_pricing_tiers)) {
+      const tempProduct = { ...existingItem, price: finalPriceListRate || finalRate } as Product;
+      const localCalculatedRate = this.calculateItemUnitPrice(tempProduct, qty);
+      if (localCalculatedRate > 0) {
+        finalRate = localCalculatedRate;
+      }
+    }
+
+    const finalAmount = finalRate * qty;
+    const finalDiscount = finalPriceListRate > finalRate ? (finalPriceListRate - finalRate) * qty : (existingItem ? Number(existingItem.discount || 0) : 0);
     
     let finalImages = [resolvedImage];
     if (resolvedImage === 'assets/images/logo.png' && existingItem && existingItem.images && existingItem.images.length > 0) {
@@ -889,11 +906,12 @@ export class CartService {
       price: finalRate,
       prevprice: finalPriceListRate,
       qty,
-      discount: effectiveDiscount,
+      discount: finalDiscount,
       totalprice: finalAmount,
       item_code: item.item_code || itemCode,
       rating: existingItem ? existingItem.rating : { rate: 0, count: 0 },
-      wholesale_pricing_tiers: existingItem ? existingItem.wholesale_pricing_tiers : undefined
+      wholesale_pricing_tiers: existingItem ? existingItem.wholesale_pricing_tiers : undefined,
+      pricingRuleSlabs: existingItem ? existingItem.pricingRuleSlabs : undefined
     };
   }
 
@@ -1047,8 +1065,13 @@ export class CartService {
           return mappedItems;
         }),
         tap(products => {
-          if (products.length > 0 || qty === 0) {
+          if (products.length > 0) {
             this.syncCart(products);
+          } else if (qty === 0 && this.cart.length === 0) {
+            this.syncCart(products);
+          } else if (qty === 0 && this.cart.length > 0) {
+            console.warn('[Cart] updateCartMethodApi returned 0 items for remove, but local cart has', this.cart.length, 'items. Refreshing from server.');
+            this.refreshFromServer().subscribe();
           } else {
             console.warn('[Cart] updateCartMethodApi returned 0 items but qty was', qty, '. Keeping local state.');
           }
@@ -1461,6 +1484,16 @@ export class CartService {
     return total;
   }
   private calculateItemUnitPrice(item: Product, qty: number): number {
+    // 1. Check ERPNext Pricing Rule Slabs first
+    if (item.pricingRuleSlabs && item.pricingRuleSlabs.length > 0) {
+      // Find the appropriate slab
+      const matchedSlab = item.pricingRuleSlabs.find(slab => qty >= slab.minQty && (slab.maxQty === 0 || qty <= slab.maxQty));
+      if (matchedSlab) {
+        return matchedSlab.price;
+      }
+    }
+
+    // 2. Fallback to custom wholesale pricing tiers
     if (item.wholesale_pricing_tiers && item.wholesale_pricing_tiers.length > 0) {
       // Sort tiers to find the base rate (lowest min quantity) as fallback
       const sortedTiers = [...item.wholesale_pricing_tiers].sort((a, b) => a.minimum_quantity - b.minimum_quantity);

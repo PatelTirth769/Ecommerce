@@ -7,6 +7,12 @@ export interface WholesalePricingTier {
     active: number;
 }
 
+export interface PricingRuleSlabDetail {
+    minQty: number;
+    maxQty: number;
+    price: number;
+}
+
 export interface Product {
     id:string|number;
     title:string;
@@ -29,6 +35,7 @@ export interface Product {
     has_variants?: boolean;
     item_code?: string;
     wholesale_pricing_tiers?: WholesalePricingTier[];
+    pricingRuleSlabs?: PricingRuleSlabDetail[];
     erpRemainingShelfLifeInDays?: number;
     published?: boolean;
     modified?: string | Date;

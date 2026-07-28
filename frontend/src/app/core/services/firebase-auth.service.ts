@@ -167,6 +167,8 @@ export class FirebaseAuthService {
       time_zone: buyerData.time_zone,
       send_welcome_email: buyerData.send_welcome_email ? 1 : 0,
       enabled: 1,
+      role_profile_name: 'Customer',
+      module_profile: 'Customer',
       roles: [
         { role: 'Customer' }
       ]
@@ -212,7 +214,70 @@ export class FirebaseAuthService {
     return this.http.put(`${this.baseUrl}api/resource/User/${email}`, payload, { headers, withCredentials: true });
   }
 
+  // Get Customer by Email
+  getCustomerByEmail(email: string): Observable<any> {
+    console.log('getCustomerByEmail called with API_KEY:', this.API_KEY);
+    const headers = { 'Authorization': `token ${this.API_KEY}:${this.API_SECRET}` };
+    const filters = JSON.stringify([['email_id', '=', email]]);
+    return this.http.get(`${this.baseUrl}api/resource/Customer?filters=${encodeURIComponent(filters)}&fields=["name"]`, { headers, withCredentials: true }).pipe(
+      map((res: any) => res?.data?.[0]?.name || null)
+    );
+  }
 
+  // Get Addresses for a Customer
+  getCustomerAddresses(customerName: string): Observable<any[]> {
+    const headers = { 'Authorization': `token ${this.API_KEY}:${this.API_SECRET}` };
+    // In ERPNext, Address links are stored in child table 'links'. 
+    // We can filter Address by joining Dynamic Link or directly if the API supports it.
+    // The easiest way is to use `frappe.client.get_list` logic which allows querying child tables via Dynamic Link.
+    // Let's use the Dynamic Link fields.
+    const filters = JSON.stringify([['Dynamic Link', 'link_doctype', '=', 'Customer'], ['Dynamic Link', 'link_name', '=', customerName]]);
+    const fields = JSON.stringify(['name', 'address_title', 'address_type', 'address_line1', 'address_line2', 'city', 'state', 'country', 'pincode', 'email_id', 'phone', 'is_primary_address', 'is_shipping_address', 'disabled']);
+    return this.http.get(`${this.baseUrl}api/resource/Address?filters=${encodeURIComponent(filters)}&fields=${encodeURIComponent(fields)}`, { headers, withCredentials: true }).pipe(
+      map((res: any) => res?.data || [])
+    );
+  }
+
+  // Create Address
+  createAddress(addressData: any, customerName: string): Observable<any> {
+    const headers = { 'Authorization': `token ${this.API_KEY}:${this.API_SECRET}` };
+    const payload = {
+      ...addressData,
+      links: [{ link_doctype: 'Customer', link_name: customerName }]
+    };
+    return this.http.post(`${this.baseUrl}api/resource/Address`, payload, { headers, withCredentials: true });
+  }
+
+  // Update Address
+  updateAddress(addressName: string, addressData: any): Observable<any> {
+    const headers = { 'Authorization': `token ${this.API_KEY}:${this.API_SECRET}` };
+    return this.http.put(`${this.baseUrl}api/resource/Address/${encodeURIComponent(addressName)}`, addressData, { headers, withCredentials: true });
+  }
+
+  // Check if a User with this email exists in ERPNext
+  async checkUserExists(email: string): Promise<boolean> {
+    const headers = { 'Authorization': `token ${this.API_KEY}:${this.API_SECRET}` };
+    try {
+      const res: any = await this.http.get(
+        `${this.baseUrl}api/resource/User/${encodeURIComponent(email)}`,
+        { headers, withCredentials: true }
+      ).toPromise();
+      return !!(res?.data?.email);
+    } catch (err: any) {
+      if (err?.status === 404) return false;
+      throw err;
+    }
+  }
+
+  // Reset (change) password for an ERPNext user
+  async resetPassword(email: string, newPassword: string): Promise<void> {
+    const headers = { 'Authorization': `token ${this.API_KEY}:${this.API_SECRET}` };
+    await this.http.put(
+      `${this.baseUrl}api/resource/User/${encodeURIComponent(email)}`,
+      { new_password: newPassword },
+      { headers, withCredentials: true }
+    ).toPromise();
+  }
 
   // Get Candid Categories from external Firestore project via REST API
   getCandidCategories(type: string): Observable<any[]> {

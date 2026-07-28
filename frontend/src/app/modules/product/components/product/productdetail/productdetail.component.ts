@@ -427,6 +427,7 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
       this.erpLongDescription = this.resolveErpLongDescription(mergedWebsiteItem, item);
       this.erpReviews = this.extractErpReviews(mergedWebsiteItem, item, this.currentReviews);
       this.setErpReviewStats(this.erpReviews);
+      this.calculatePricing();
     } else {
       // Fallback optimistic update
       this.product.price = Number(sellingPrice ?? 0) || Number(item?.standard_rate ?? 0);
@@ -448,6 +449,7 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
         this.images = newImages;
         this.imageSrc = this.images[0];
       }
+      this.calculatePricing();
     }
 
     // Try to fetch the exact Website Item for this variant in the background
@@ -477,6 +479,16 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
             this.erpReviews = this.extractErpReviews(websiteItem, item, reviews as any[]);
             this.setErpReviewStats(this.erpReviews);
           });
+          
+          // Sync pricing rules for this specific variant
+          const actualItemCode = item?.item_code || item?.name || websiteItem.item_code;
+          if (actualItemCode) {
+            this.websiteItemService.getPricingRules(actualItemCode).subscribe(rules => {
+              this.buildPricingRuleSlabs(rules, this.product.price, this.erpUom);
+            });
+          } else {
+            this.calculatePricing();
+          }
         }
       },
       error: () => {
@@ -921,7 +933,12 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
     this.ratingList=this.productService.getRatingStar(this.product);
   }
   addToCart(product:Product){
-    const cartProduct = { ...product, qty: this.qty, price: this.currentUnitPrice };
+    const slabs = this.pricingRuleSlabs.map(slab => ({
+      minQty: slab.minQty,
+      maxQty: slab.maxQty,
+      price: slab.price
+    }));
+    const cartProduct = { ...product, qty: this.qty, price: this.currentUnitPrice, pricingRuleSlabs: slabs };
     this.cartService.add(cartProduct);
   }
   removeFromCart(product:Product){

@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { FirebaseAuthService } from '../../core/services/firebase-auth.service';
 import { PaymentService } from '../../core/services/payment.service';
-import { Observable, of, switchMap, catchError } from 'rxjs';
+import { Observable, of, switchMap, catchError, BehaviorSubject } from 'rxjs';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 
 @Component({
@@ -12,7 +12,18 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 export class BuyerProfileComponent implements OnInit {
   profileData$: Observable<any> | null = null;
   orders$: Observable<any> | null = null;
-  activeTab: 'details' | 'orders' | 'business' = 'details';
+  activeTab: 'details' | 'orders' | 'business' | 'addresses' = 'details';
+  
+  // Address fields
+  addressForm!: FormGroup;
+  isSavingAddress = false;
+  addressSaveSuccess = false;
+  addressSaveError = '';
+  addressesSubject = new BehaviorSubject<any[]>([]);
+  addresses$ = this.addressesSubject.asObservable();
+  customerName: string | null = null;
+  showAddAddressForm = false;
+  editingAddressName: string | null = null;
   
   businessForm!: FormGroup;
   isSavingBusiness = false;
@@ -68,6 +79,21 @@ export class BuyerProfileComponent implements OnInit {
       confirm_password: ['']
     }, { validators: this.passwordMatchValidator });
 
+    // Initialize Address Form
+    this.addressForm = this.fb.group({
+      address_title: ['', Validators.required],
+      address_type: ['Billing', Validators.required],
+      address_line1: ['', Validators.required],
+      address_line2: [''],
+      city: ['', Validators.required],
+      state: [''],
+      country: ['India', Validators.required],
+      pincode: [''],
+      is_primary_address: [0],
+      is_shipping_address: [0],
+      disabled: [0]
+    });
+
     // Fetch user orders
     this.orders$ = this.authService.user$.pipe(
       switchMap(user => {
@@ -101,12 +127,30 @@ export class BuyerProfileComponent implements OnInit {
           send_welcome_email: user.send_welcome_email === 1 || user.send_welcome_email === true
         });
 
-
+        // Load Addresses
+        this.loadAddresses(user.email);
       }
     });
   }
 
-  switchTab(tab: 'details' | 'orders' | 'business'): void {
+  loadAddresses(email: string) {
+    this.authService.getCustomerByEmail(email).pipe(
+      switchMap(customerName => {
+        if (customerName) {
+          this.customerName = customerName;
+          return this.authService.getCustomerAddresses(customerName);
+        }
+        return of([]);
+      })
+    ).subscribe({
+      next: (addresses) => {
+        this.addressesSubject.next(addresses);
+      },
+      error: (err) => console.error('Error loading addresses', err)
+    });
+  }
+
+  switchTab(tab: 'details' | 'orders' | 'business' | 'addresses'): void {
     this.activeTab = tab;
   }
 
@@ -181,5 +225,91 @@ export class BuyerProfileComponent implements OnInit {
       this.basicInfoSaveSuccess = true;
       setTimeout(() => this.basicInfoSaveSuccess = false, 3000);
     }
+  }
+
+  saveAddress(): void {
+    this.addressSaveError = '';
+    
+    if (this.addressForm.invalid) {
+      this.addressForm.markAllAsTouched();
+      this.addressSaveError = 'Please fill out all required fields.';
+      console.log('Address form is invalid:', this.addressForm.errors, this.addressForm.value);
+      return;
+    }
+
+    if (!this.customerName) {
+      this.addressSaveError = 'No linked Customer profile found for this user. Cannot save address.';
+      console.warn('Cannot save address: customerName is null.');
+      return;
+    }
+
+    this.isSavingAddress = true;
+    this.addressSaveSuccess = false;
+
+    const payload = this.addressForm.getRawValue();
+    // Convert boolean-like checkboxes if necessary (using 1/0 for ERPNext)
+    payload.is_primary_address = payload.is_primary_address ? 1 : 0;
+    payload.is_shipping_address = payload.is_shipping_address ? 1 : 0;
+    payload.disabled = payload.disabled ? 1 : 0;
+
+    const saveObservable = this.editingAddressName 
+      ? this.authService.updateAddress(this.editingAddressName, payload)
+      : this.authService.createAddress(payload, this.customerName);
+
+    saveObservable.subscribe({
+      next: (res) => {
+        this.isSavingAddress = false;
+        this.addressSaveSuccess = true;
+        this.addressForm.reset({
+          address_type: 'Billing',
+          country: 'India',
+          is_primary_address: 0,
+          is_shipping_address: 0,
+          disabled: 0
+        });
+        this.showAddAddressForm = false;
+        this.editingAddressName = null;
+        // Reload addresses
+        this.authService.user$.subscribe(user => {
+          if (user && user.email) this.loadAddresses(user.email);
+        }).unsubscribe();
+        setTimeout(() => this.addressSaveSuccess = false, 3000);
+      },
+      error: (err) => {
+        console.error('Failed to save address', err);
+        this.isSavingAddress = false;
+        this.addressSaveError = 'Failed to save address. Please try again.';
+      }
+    });
+  }
+
+  editAddress(addr: any): void {
+    this.editingAddressName = addr.name;
+    this.showAddAddressForm = true;
+    this.addressForm.patchValue({
+      address_title: addr.address_title,
+      address_type: addr.address_type,
+      address_line1: addr.address_line1,
+      address_line2: addr.address_line2,
+      city: addr.city,
+      state: addr.state,
+      country: addr.country,
+      pincode: addr.pincode,
+      is_primary_address: addr.is_primary_address,
+      is_shipping_address: addr.is_shipping_address,
+      disabled: addr.disabled
+    });
+  }
+
+  cancelEditAddress(): void {
+    this.showAddAddressForm = false;
+    this.editingAddressName = null;
+    this.addressForm.reset({
+      address_type: 'Billing',
+      country: 'India',
+      is_primary_address: 0,
+      is_shipping_address: 0,
+      disabled: 0
+    });
   }
 }

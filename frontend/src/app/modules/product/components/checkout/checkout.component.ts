@@ -5,6 +5,7 @@ import { CartService, TaxDetail } from 'src/app/core/services/cart.service';
 import { PaymentService } from 'src/app/core/services/payment.service';
 import { ToastService } from 'src/app/core/services/toast.service';
 import { environment } from 'src/environments/environment';
+import { FirebaseAuthService } from 'src/app/core/services/firebase-auth.service';
 
 @Component({
   selector: 'app-checkout',
@@ -26,7 +27,8 @@ export class CheckoutComponent implements OnInit {
     private paymentService: PaymentService,
     private toastService: ToastService,
     private router: Router,
-    private formBuilder: FormBuilder
+    private formBuilder: FormBuilder,
+    private authService: FirebaseAuthService
   ) {
     this.shippingForm = this.formBuilder.group({
       firstName: new FormControl('', [Validators.required, Validators.minLength(3), Validators.maxLength(15)]),
@@ -47,12 +49,40 @@ export class CheckoutComponent implements OnInit {
     if (storedUser) {
       try {
         const user = JSON.parse(storedUser);
+        const email = user.email || '';
         this.shippingForm.patchValue({
           firstName: user.first_name || '',
           lastName: user.last_name || '',
-          email: user.email || '',
+          email: email,
           mobile: user.mobile_no || ''
         });
+        
+        if (email) {
+          this.authService.getCustomerByEmail(email).subscribe({
+            next: (customerName) => {
+              if (customerName) {
+                this.authService.getCustomerAddresses(customerName).subscribe(addresses => {
+                  if (addresses && addresses.length > 0) {
+                    // Try to find shipping address, otherwise primary billing, otherwise first
+                    let targetAddr = addresses.find(a => a.is_shipping_address) 
+                                  || addresses.find(a => a.is_primary_address) 
+                                  || addresses[0];
+                    
+                    this.shippingForm.patchValue({
+                      address: targetAddr.address_line1 + (targetAddr.address_line2 ? ', ' + targetAddr.address_line2 : ''),
+                      city: targetAddr.city || '',
+                      state: targetAddr.state || '',
+                      country: targetAddr.country || 'India',
+                      postalCode: targetAddr.pincode || '',
+                      mobile: targetAddr.phone || this.shippingForm.value.mobile
+                    });
+                  }
+                });
+              }
+            },
+            error: (err) => console.error('Failed to get customer for checkout prefill', err)
+          });
+        }
       } catch (e) {
         console.warn('Failed to parse stored user info for checkout form prefill', e);
       }

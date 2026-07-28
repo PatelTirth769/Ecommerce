@@ -13,8 +13,8 @@ export class AuthinterceptorService implements HttpInterceptor {
     // Get the token from AuthService
     const token = this.authService.getToken();
     
-    // Clone the request and add auth header if token exists
-    if (token) {
+    // Clone the request and add auth header if token exists and header isn't already set
+    if (token && !req.headers.has('Authorization')) {
       req = req.clone({
         headers: req.headers.set('Authorization', `Bearer ${token}`)
       });
