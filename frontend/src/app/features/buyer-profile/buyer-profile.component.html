@@ -3,10 +3,10 @@
     
     <!-- ERPNext Style Header -->
     <div class="max-w-[1100px] mx-auto bg-white rounded-t-xl border border-gray-200 shadow-sm overflow-hidden">
-      <div class="flex justify-between items-center px-6 py-4 border-b border-gray-200">
-        <div class="flex items-center gap-4">
+      <div class="flex flex-wrap justify-between items-center gap-3 px-6 py-4 border-b border-gray-200">
+        <div class="flex flex-wrap items-center gap-3 md:gap-4 min-w-0">
           <span class="text-xl text-gray-500">☰</span>
-          <h2 class="text-xl font-bold text-gray-900">{{ profile.full_name || profile.name }}</h2>
+          <h2 class="text-xl font-bold text-gray-900 break-words">{{ profile.full_name || profile.name }}</h2>
           <span class="bg-green-50 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border border-green-100">
             {{ profile.enabled ? 'Active' : 'Disabled' }}
           </span>
@@ -334,7 +334,7 @@
                       {{ order.payment_entry_no || '—' }}
                     </div>
                   </div>
-                  <div class="flex gap-3">
+                  <div class="flex flex-wrap gap-3">
                     <a *ngIf="order.invoice_pdf_available" [href]="getInvoiceUrl(order.razorpay_order_id)" target="_blank"
                        class="px-3 py-1.5 bg-gray-900 text-white rounded-md text-xs font-semibold hover:bg-gray-800 transition-all">
                       Download Invoice
