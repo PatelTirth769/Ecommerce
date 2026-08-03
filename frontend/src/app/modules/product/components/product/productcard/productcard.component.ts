@@ -22,6 +22,7 @@ export class ProductcardComponent implements OnInit, OnDestroy {
   cart:Product[]=[];
   wishlist: WishlistItem[] = [];
   discount=0;
+  qty = 1;
   private cartSub!: Subscription;
   private wishlistSub!: Subscription;
   constructor(private cartService:CartService, private productService:ProductService, private wishlistService: WishlistService){}
@@ -42,8 +43,22 @@ export class ProductcardComponent implements OnInit, OnDestroy {
     this.wishlistSub?.unsubscribe();
   }
 
+  increaseQty(): void {
+    this.qty++;
+  }
+
+  decreaseQty(): void {
+    if (this.qty > 1) this.qty--;
+  }
+
+  onQtyChange(event: Event): void {
+    const value = Number((event.target as HTMLInputElement).value);
+    this.qty = value > 0 ? Math.floor(value) : 1;
+  }
+
   addToCart(product:Product){
-   this.cartService.add(product);
+   this.cartService.add({ ...product, qty: this.qty });
+   this.qty = 1;
   }
 
   removeFromCart(product:Product){
@@ -59,7 +74,11 @@ export class ProductcardComponent implements OnInit, OnDestroy {
     return this.wishlist.some(i => i.item_code === itemCode);
   }
 
-  toggleWishlist(product: Product): void {
+  toggleWishlist(product: Product, event?: Event): void {
+    // The heart button sits inside the product-detail <a routerLink>; without
+    // this the click bubbles up and navigates to the product page too.
+    event?.stopPropagation();
+    event?.preventDefault();
     this.wishlistService.toggleWishlist(product).subscribe();
   }
 

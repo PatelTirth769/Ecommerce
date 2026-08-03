@@ -6,8 +6,11 @@ async function createSalesInvoiceFromSalesOrder(salesOrderName) {
     { source_name: salesOrderName }
   );
   
-  if (!draft.due_date) {
-    draft.due_date = new Date().toISOString().slice(0, 10); // Default to today
+  if (draft) {
+    if (!draft.due_date) {
+      draft.due_date = new Date().toISOString().slice(0, 10); // Default to today
+    }
+    draft.letter_head = 'Sales24x7 Letter Head';
   }
   
   return client.createResource('Sales Invoice', draft);

@@ -9,7 +9,7 @@
     <article class="space-y-8">
         <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-4">
             <h3 class="text-2xl font-black text-gray-900 dark:text-white tracking-tight">New Arrivals</h3>
-            <a href="#" class="text-sm font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400">View All</a>
+            <a routerLink="/product-master" class="text-sm font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400">View All</a>
         </div>
 
         <!-- Error State -->
@@ -25,7 +25,7 @@
             </div>
         </div>
 
-        <!-- Loading Skeletons -->
+        <!-- Loading Skeletons for Initial Load -->
         <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6" *ngIf="!error && isLoading">
             <app-cardskeleton *ngFor="let skeleton of skeletons"></app-cardskeleton>
         </div>
@@ -36,6 +36,11 @@
               *ngFor="let product of products" 
               [product]="product"
             ></app-productcard>
+        </div>
+
+        <!-- Loading Skeletons for Infinite Scroll -->
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6 mt-5" *ngIf="isFetchingMore">
+            <app-cardskeleton *ngFor="let skeleton of skeletons"></app-cardskeleton>
         </div>
     </article>
 </section>

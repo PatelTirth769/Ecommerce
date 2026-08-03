@@ -2,7 +2,7 @@
   <ng-container *ngIf="(profileData$ | async) as profile; else loading">
     
     <!-- ERPNext Style Header -->
-    <div class="max-w-[1100px] mx-auto bg-white rounded-t-xl border border-gray-200 shadow-sm overflow-hidden">
+    <div class="max-w-[1100px] mx-auto bg-white rounded-t-xl border border-gray-200 shadow-sm">
       <div class="flex flex-wrap justify-between items-center gap-3 px-6 py-4 border-b border-gray-200">
         <div class="flex flex-wrap items-center gap-3 md:gap-4 min-w-0">
           <span class="text-xl text-gray-500">☰</span>
@@ -575,11 +575,21 @@
                 <!-- City & State -->
                 <div>
                   <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">City / Town *</label>
-                  <input type="text" formControlName="city" class="w-full bg-[#f9fafb] border border-gray-200 rounded-md px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400">
+                  <app-searchable-select
+                    formControlName="city"
+                    [options]="cityOptions"
+                    [showActions]="false"
+                    placeholder="Type or select a city">
+                  </app-searchable-select>
                 </div>
                 <div>
                   <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">State / Province</label>
-                  <input type="text" formControlName="state" class="w-full bg-[#f9fafb] border border-gray-200 rounded-md px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400">
+                  <app-searchable-select
+                    formControlName="state"
+                    [options]="stateOptions"
+                    [showActions]="false"
+                    placeholder="Type or select a state">
+                  </app-searchable-select>
                 </div>
                 
                 <!-- Country & Pincode -->

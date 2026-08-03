@@ -13,6 +13,8 @@ export class RegisterComponent implements OnInit {
   registerForm!: FormGroup;
   isLoading = false;
   errorMessage = '';
+  showPassword = false;
+  showConfirmPassword = false;
 
   constructor(
     private fb: FormBuilder,
@@ -24,12 +26,10 @@ export class RegisterComponent implements OnInit {
   ngOnInit(): void {
     this.registerForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
-      mobile: ['', Validators.required],
+      mobile: ['', [Validators.required, Validators.pattern('^[0-9]{10}$')]],
       username: [''],
       first_name: ['', Validators.required],
-      middle_name: [''],
       last_name: ['', Validators.required],
-      language: ['English'],
       send_welcome_email: [true],
       password: ['', [Validators.required, Validators.minLength(6)]],
       confirmPassword: ['', Validators.required]
@@ -39,6 +39,14 @@ export class RegisterComponent implements OnInit {
   passwordMatchValidator(g: FormGroup) {
     return g.get('password')?.value === g.get('confirmPassword')?.value
       ? null : { mismatch: true };
+  }
+
+  onMobileKeyPress(event: KeyboardEvent) {
+    const charCode = event.which ? event.which : event.keyCode;
+    // Allow only numeric digits
+    if (charCode > 31 && (charCode < 48 || charCode > 57)) {
+      event.preventDefault();
+    }
   }
 
   async onSubmit() {
@@ -93,7 +101,17 @@ export class RegisterComponent implements OnInit {
       }
 
       this.errorMessage = serverMessage || error.error?.message || error.message || 'Failed to register. Please try again.';
-      this.toastService.showError(this.errorMessage);
+      
+      if (this.errorMessage.toLowerCase().includes('password')) {
+        const passControl = this.registerForm.get('password');
+        if (passControl) {
+          passControl.setErrors({ serverError: this.errorMessage });
+          passControl.markAsTouched();
+        }
+        this.errorMessage = 'Please fix the error in the password field.';
+      } else {
+        this.toastService.showError(this.errorMessage);
+      }
     } finally {
       this.isLoading = false;
     }

@@ -112,7 +112,10 @@ const completePayment = async (req, res, next) => {
 
     logger.info('[4/6] Starting ERPNext sync (Quotation -> Sales Order -> Sales Invoice -> Payment Entry)', { razorpay_order_id: orderId });
     const result = await Promise.race([
-      paymentOrchestration.runErpnextSync(orderId).catch((err) => ({ syncError: err.message })),
+      paymentOrchestration.runErpnextSync(orderId).catch((err) => {
+        logger.error('[4/6] ERPNext sync promise rejected', { stack: err.stack || err });
+        return { syncError: err.message || err.toString(), stack: err.stack };
+      }),
       timeout(INLINE_SYNC_TIMEOUT_MS)
     ]);
 

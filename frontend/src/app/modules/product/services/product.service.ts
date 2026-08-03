@@ -2,8 +2,8 @@ import { Injectable } from '@angular/core';
 import { environment } from 'src/environments/environment';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { BehaviorSubject, Observable, catchError, map, of, forkJoin, switchMap } from 'rxjs';
-import { Product } from '../model';
-import { WebsiteItemService } from '../../../core/services/website-item.service';
+import { Product, PricingRuleSlabDetail } from '../model';
+import { WebsiteItemService, PricingRuleSlab } from '../../../core/services/website-item.service';
 
 @Injectable({
   providedIn: 'root'
@@ -19,6 +19,29 @@ export class ProductService {
 
   private normalizeValue(value: string): string {
     return value.trim().toLowerCase();
+  }
+
+  // Resolve a raw ERPNext Pricing Rule (fixed price / discount % / flat discount amount)
+  // into a concrete per-unit price against a base price.
+  private resolveSlabPrice(r: PricingRuleSlab, basePrice: number): number {
+    if (r.fixedPrice > 0) return r.fixedPrice;
+    if (r.discountPercentage > 0) return Math.round(basePrice * (1 - r.discountPercentage / 100));
+    if (r.discountAmount > 0) return Math.max(basePrice - r.discountAmount, 0);
+    return basePrice;
+  }
+
+  // Resolve raw ERPNext Pricing Rule slabs into concrete per-unit prices against a base
+  // price, mirroring productdetail.buildPricingRuleSlabs so cart.service's
+  // calculateItemUnitPrice sees the same shape regardless of where the item was added from.
+  private resolvePricingRuleSlabs(rules: PricingRuleSlab[], basePrice: number): PricingRuleSlabDetail[] {
+    return rules
+      .filter(r => r.discountPercentage > 0 || r.fixedPrice > 0 || r.discountAmount > 0)
+      .map(r => ({
+        minQty: r.minQty,
+        maxQty: r.maxQty,
+        price: this.resolveSlabPrice(r, basePrice)
+      }))
+      .sort((a, b) => a.minQty - b.minQty);
   }
 
   private fetchProductsFromERP(): Observable<Product[]> {
@@ -158,22 +181,32 @@ export class ProductService {
           }
         });
 
-        // Fetch pricing rules and overlay them
-        return this.websiteItemService.getAllActivePricingRules().pipe(
-          map(ruleMap => {
+        // Fetch pricing rules and overlay them (both the flat "at a glance" discount badge
+        // and the full qty-based slabs, so cards can add-to-cart with correct tiered pricing
+        // just like the product detail page does).
+        return this.websiteItemService.getAllActivePricingRuleSlabs().pipe(
+          map(slabMap => {
             return products.map(p => {
-              const rule = ruleMap.get(p.item_code || '');
-              if (rule && (rule.discountPct > 0 || rule.fixedPrice > 0) && rule.minQty <= 1) {
-                const discounted = rule.fixedPrice > 0
-                  ? rule.fixedPrice
-                  : Math.round(p.price * (1 - rule.discountPct / 100));
+              const rules = slabMap.get(p.item_code || '') || [];
+              const pricingRuleSlabs = this.resolvePricingRuleSlabs(rules, p.price);
+
+              const badgeRule = rules
+                .filter(r => r.minQty <= 1 && (r.discountPercentage > 0 || r.fixedPrice > 0 || r.discountAmount > 0))
+                .sort((a, b) => b.discountPercentage - a.discountPercentage)[0];
+
+              if (badgeRule) {
+                const discounted = this.resolveSlabPrice(badgeRule, p.price);
+                const discountPct = badgeRule.discountPercentage > 0
+                  ? badgeRule.discountPercentage
+                  : (p.price > 0 ? Math.round(((p.price - discounted) / p.price) * 100) : 0);
                 return {
                   ...p,
                   erpDiscountedPrice: discounted,
-                  erpDiscountPct: rule.discountPct
+                  erpDiscountPct: discountPct,
+                  pricingRuleSlabs
                 };
               }
-              return p;
+              return { ...p, pricingRuleSlabs };
             }).filter(p => p.title && p.title.trim() !== '' && p.images && p.images.length > 0);
           }),
           catchError(() => of(products.filter(p => p.title && p.title.trim() !== '' && p.images && p.images.length > 0)))

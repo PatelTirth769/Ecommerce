@@ -76,8 +76,13 @@ export class CartComponent implements OnInit, OnDestroy{
     this.total=this.cartService.getTotal();
     this.subsTotal=this.cartService.totalAmount.subscribe(data=>this.total=Number(data.toFixed(2)));
     this.subsGST=this.cartService.gstAmount.subscribe(data=>this.gstAmount=Number(data.toFixed(2)));
-    this.subsTaxDesc=this.cartService.taxDescription.subscribe(data=>this.taxDescription=data);
-    this.subsAppliedTaxes=this.cartService.appliedTaxes.subscribe(data=>this.appliedTaxes=data);
+    this.subsTaxDesc=this.cartService.taxDescription.subscribe(data=>this.taxDescription=data.replace(/\s*-\s*Ketty/gi, '').trim());
+    this.subsAppliedTaxes=this.cartService.appliedTaxes.subscribe(data=>{
+      this.appliedTaxes=data.map(t => ({
+        ...t, 
+        description: t.description.replace(/\s*-\s*Ketty/gi, '').trim()
+      }));
+    });
     this.subsShipping=this.cartService.shippingAmount.subscribe(data=>this.shippingCost=Number(data.toFixed(2)));
     this.subsDiscount=this.cartService.discountAmount.subscribe(data=>this.discountAmount=Number(data.toFixed(2)));
     this.subsEstimatedTotal=this.cartService.estimatedTotal.subscribe(data=>this.estimatedTotal=Number(data.toFixed(2)));

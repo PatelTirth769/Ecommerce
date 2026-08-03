@@ -1,9 +1,10 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ItemRecord, WebsiteItem, WebsiteItemService } from '../../core/services/website-item.service';
+import { ItemRecord, WebsiteItem, WebsiteItemService, PricingRuleSlab } from '../../core/services/website-item.service';
 import { ActivatedRoute, Router } from '@angular/router';
 import { CartService } from '../../core/services/cart.service';
-import { Product } from 'src/app/modules/product/model';
+import { WishlistService, WishlistItem } from '../../core/services/wishlist.service';
+import { Product, PricingRuleSlabDetail, WholesalePricingTier } from 'src/app/modules/product/model';
 import { Subscription, catchError, forkJoin, map, of, switchMap } from 'rxjs';
 
 interface ProductMasterItem extends WebsiteItem {
@@ -18,6 +19,9 @@ interface ProductMasterItem extends WebsiteItem {
   item_group?: string;
   erpDiscountedPrice?: number;  // pricing-rule adjusted price
   erpDiscountPct?: number;       // discount % for badge
+  wholesale_pricing_tiers?: WholesalePricingTier[];
+  pricingRuleSlabs?: PricingRuleSlabDetail[];
+  qty?: number;                  // qty selected via the card's stepper, before Add to Cart
 }
 
 @Component({
@@ -28,6 +32,7 @@ export class ProductMasterComponent implements OnInit, OnDestroy {
   allItems: ProductMasterItem[] = [];
   items: ProductMasterItem[] = [];
   cart: Product[] = [];
+  wishlist: WishlistItem[] = [];
   isLoading = false;
   errorMessage = '';
   currentQuery = '';
@@ -35,14 +40,24 @@ export class ProductMasterComponent implements OnInit, OnDestroy {
   allItemsFilteredCount = 0;
   private fallbackImage = 'assets/images/logo.png';
   private cartSub!: Subscription;
+  private wishlistSub!: Subscription;
 
-  constructor(private websiteItemService: WebsiteItemService, private router: Router, private route: ActivatedRoute, private cartService: CartService) {}
+  constructor(
+    private websiteItemService: WebsiteItemService,
+    private router: Router,
+    private route: ActivatedRoute,
+    private cartService: CartService,
+    private wishlistService: WishlistService
+  ) {}
 
   ngOnInit(): void {
     // Subscribe to cart changes so UI updates instantly on add/remove
     this.cartSub = this.cartService.cart$.subscribe(cartItems => {
       console.log('[ProductMaster] cart$ received', cartItems.length, 'items');
       this.cart = cartItems;
+    });
+    this.wishlistSub = this.wishlistService.wishlist$.subscribe(items => {
+      this.wishlist = items;
     });
     this.route.queryParams.subscribe(params => {
       this.currentQuery = (params['q'] || '').toLowerCase().trim();
@@ -53,6 +68,18 @@ export class ProductMasterComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.cartSub?.unsubscribe();
+    this.wishlistSub?.unsubscribe();
+  }
+
+  toggleWishlist(item: ProductMasterItem, event?: Event): void {
+    event?.stopPropagation();
+    event?.preventDefault();
+    this.wishlistService.toggleWishlist(this.toCartProduct(item)).subscribe();
+  }
+
+  isItemInWishlist(item: ProductMasterItem): boolean {
+    const itemCode = item.item_code || item.name;
+    return this.wishlist.some(w => w.item_code === itemCode);
   }
 
   loadItems(): void {
@@ -138,19 +165,28 @@ export class ProductMasterComponent implements OnInit, OnDestroy {
             this.allItems = baseItems;
             this.applyFilter();
 
-            // Apply pricing rule discounts — fetch all rules once, map to items
-            this.websiteItemService.getAllActivePricingRules().subscribe(ruleMap => {
+            // Apply pricing rule discounts — fetch all rules once, map to items.
+            // Also resolve the full qty-based slabs so "Add to Cart" from the card
+            // applies the same tiered pricing the product detail page does.
+            this.websiteItemService.getAllActivePricingRuleSlabs().subscribe(slabMap => {
               this.allItems = this.allItems.map(item => {
                 const ic = (item as any).item_code || item.name;
-                const rule = ruleMap.get(ic);
-                if (rule && (rule.discountPct > 0 || rule.fixedPrice > 0) && rule.minQty <= 1) {
-                  const base = item.erpPrice;
-                  const discounted = rule.fixedPrice > 0
-                    ? rule.fixedPrice
-                    : Math.round(base * (1 - rule.discountPct / 100));
-                  return { ...item, erpDiscountedPrice: discounted, erpDiscountPct: rule.discountPct };
+                const rules = slabMap.get(ic) || [];
+                const base = item.erpPrice;
+                const pricingRuleSlabs = this.resolvePricingRuleSlabs(rules, base);
+
+                const badgeRule = rules
+                  .filter(r => r.minQty <= 1 && (r.discountPercentage > 0 || r.fixedPrice > 0 || r.discountAmount > 0))
+                  .sort((a, b) => b.discountPercentage - a.discountPercentage)[0];
+
+                if (badgeRule) {
+                  const discounted = this.resolveSlabPrice(badgeRule, base);
+                  const discountPct = badgeRule.discountPercentage > 0
+                    ? badgeRule.discountPercentage
+                    : (base > 0 ? Math.round(((base - discounted) / base) * 100) : 0);
+                  return { ...item, erpDiscountedPrice: discounted, erpDiscountPct: discountPct, pricingRuleSlabs };
                 }
-                return item;
+                return { ...item, pricingRuleSlabs };
               });
               this.applyFilter();
               this.isLoading = false;
@@ -203,6 +239,16 @@ export class ProductMasterComponent implements OnInit, OnDestroy {
   }
 
   private toProductMasterItem(websiteItem: any, item: any | null, sellingPrice: number): ProductMasterItem {
+    const rawWholesale = (item as any)?.custom_wholesale_pricing || [];
+    const wholesaleTiers: WholesalePricingTier[] = Array.isArray(rawWholesale) ? rawWholesale.map((tier: any) => ({
+      minimum_quantity: Number(tier.minimum_quantity || 0),
+      maximum_quantity: Number(tier.maximum_quantity || 0),
+      unit: tier.unit,
+      price: Number(tier.price || 0),
+      discount_: Number(tier.discount_ || 0),
+      active: Number(tier.active || 0)
+    })) : [];
+
     return {
       ...websiteItem,
       erpPrice: Number(sellingPrice ?? 0) || Number(item?.standard_rate ?? 0),
@@ -212,8 +258,32 @@ export class ProductMasterComponent implements OnInit, OnDestroy {
       erpRemainingShelfLifeInDays: this.calculateRemainingShelfLife(item),
       erpUom: item?.stock_uom || 'Nos',
       isOutOfStock: Boolean(item?.disabled),
-      erpVariantOf: (item as any)?.variant_of || ''
+      erpVariantOf: (item as any)?.variant_of || '',
+      wholesale_pricing_tiers: wholesaleTiers
     };
+  }
+
+  // Resolve a raw ERPNext Pricing Rule (fixed price / discount % / flat discount amount)
+  // into a concrete per-unit price against a base price.
+  private resolveSlabPrice(r: PricingRuleSlab, basePrice: number): number {
+    if (r.fixedPrice > 0) return r.fixedPrice;
+    if (r.discountPercentage > 0) return Math.round(basePrice * (1 - r.discountPercentage / 100));
+    if (r.discountAmount > 0) return Math.max(basePrice - r.discountAmount, 0);
+    return basePrice;
+  }
+
+  // Resolve raw ERPNext Pricing Rule slabs into concrete per-unit prices against a base
+  // price, mirroring productdetail.buildPricingRuleSlabs so cart.service's
+  // calculateItemUnitPrice sees the same shape regardless of where the item was added from.
+  private resolvePricingRuleSlabs(rules: PricingRuleSlab[], basePrice: number): PricingRuleSlabDetail[] {
+    return rules
+      .filter(r => r.discountPercentage > 0 || r.fixedPrice > 0 || r.discountAmount > 0)
+      .map(r => ({
+        minQty: r.minQty,
+        maxQty: r.maxQty,
+        price: this.resolveSlabPrice(r, basePrice)
+      }))
+      .sort((a, b) => a.minQty - b.minQty);
   }
 
   getPrice(item: ProductMasterItem): number {
@@ -267,8 +337,22 @@ export class ProductMasterComponent implements OnInit, OnDestroy {
     return item.route?.replace(/^\//, '') || item.item_code || item.item_name || item.name;
   }
 
+  increaseQty(item: ProductMasterItem): void {
+    item.qty = (item.qty || 1) + 1;
+  }
+
+  decreaseQty(item: ProductMasterItem): void {
+    item.qty = Math.max((item.qty || 1) - 1, 1);
+  }
+
+  onQtyChange(item: ProductMasterItem, event: Event): void {
+    const value = Number((event.target as HTMLInputElement).value);
+    item.qty = value > 0 ? Math.floor(value) : 1;
+  }
+
   addToCart(item: ProductMasterItem): void {
     this.cartService.add(this.toCartProduct(item));
+    item.qty = 1;
   }
 
   removeFromCart(item: ProductMasterItem): void {
@@ -295,7 +379,9 @@ export class ProductMasterComponent implements OnInit, OnDestroy {
       mrp: this.getMrp(item),
       pack_size: item.erpPackSize,
       shelf_life_in_days: item.erpShelfLifeInDays,
-      qty: 1,
+      qty: item.qty && item.qty > 0 ? item.qty : 1,
+      wholesale_pricing_tiers: item.wholesale_pricing_tiers,
+      pricingRuleSlabs: item.pricingRuleSlabs,
       rating: { rate: 0, count: 0 }
     };
     return productForCart;

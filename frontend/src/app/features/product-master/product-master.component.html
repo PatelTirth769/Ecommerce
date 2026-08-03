@@ -51,12 +51,14 @@
             </div>
 
             <!-- Wishlist Button Overlay -->
-            <button 
+            <button
+              (click)="toggleWishlist(item, $event)"
               aria-label="add to wishlist"
-              class="absolute top-3 right-3 bg-white/80 backdrop-blur-sm border border-gray-100 rounded-full h-8 w-8 flex items-center justify-center text-gray-400 hover:text-red-500 hover:scale-110 transition-all shadow-sm"
-              title="Add to Wishlist"
+              [title]="isItemInWishlist(item) ? 'Remove from Wishlist' : 'Add to Wishlist'"
+              class="absolute top-3 right-3 bg-white/80 backdrop-blur-sm border border-gray-100 rounded-full h-8 w-8 flex items-center justify-center hover:scale-110 transition-all shadow-sm"
+              [ngClass]="isItemInWishlist(item) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'"
             >
-              <i class="fa-regular fa-heart"></i>
+              <i [ngClass]="isItemInWishlist(item) ? 'fa-solid fa-heart' : 'fa-regular fa-heart'"></i>
             </button>
           </a>
           
@@ -131,13 +133,28 @@
               </button>
 
               <ng-template #addtocart>
-                <button
-                  *ngIf="item.published && !isOutOfStock(item); else unavailable"
-                  class="px-4 py-2 bg-gray-900 text-white font-bold text-xs w-full rounded-lg hover:bg-blue-600 transition-all flex items-center justify-center gap-2"
-                  (click)="addToCart(item)"
-                >
-                  <i class="fa-solid fa-bag-shopping"></i>Add to Cart
-                </button>
+                <ng-container *ngIf="item.published && !isOutOfStock(item); else unavailable">
+                  <!-- Quantity Stepper -->
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Qty</span>
+                    <div class="flex items-center rounded border border-gray-200 bg-white overflow-hidden">
+                      <button type="button" (click)="decreaseQty(item)" class="w-6 h-6 flex items-center justify-center hover:bg-gray-50 text-gray-500 transition-colors">
+                        <i class="fa-solid fa-minus text-[9px]"></i>
+                      </button>
+                      <input type="number" min="1" [value]="item.qty || 1" (change)="onQtyChange(item, $event)" class="w-8 h-6 border-x border-gray-200 bg-white text-center text-xs font-bold text-gray-800 focus:outline-none px-0" />
+                      <button type="button" (click)="increaseQty(item)" class="w-6 h-6 flex items-center justify-center hover:bg-gray-50 text-gray-500 transition-colors">
+                        <i class="fa-solid fa-plus text-[9px]"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    class="px-4 py-2 bg-gray-900 text-white font-bold text-xs w-full rounded-lg hover:bg-blue-600 transition-all flex items-center justify-center gap-2"
+                    (click)="addToCart(item)"
+                  >
+                    <i class="fa-solid fa-bag-shopping"></i>Add to Cart
+                  </button>
+                </ng-container>
               </ng-template>
 
               <ng-template #unavailable>

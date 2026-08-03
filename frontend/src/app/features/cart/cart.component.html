@@ -1,140 +1,150 @@
-<section class="border-blue-500 ">
-    <h3 class="text-3xl font-semibold text-gray-700 text-center mb-3">
-        <i title="Shopping Cart" class="fa-solid fa-bag-shopping mr-2"></i>
-        My Cart
-    </h3>
-    <ng-template #empty>
-        <section class="flex justify-center items-center h-[60vh]">
-            <div class="text-gray-500 flex flex-col justify-center items-center">
-            <span class="text-4xl">
-                <i class="fa-solid fa-bag-shopping"></i>
-            </span>
-            <h4 class="text-2xl px-4 py-2">NO ITEMS IN CART</h4>
-            <a [routerLink]="['/']" 
-            class="px-4 py-2 mt-5 bg-gray-800 text-white">
-                Go to Shopping
-            </a>
+<section class="px-3 py-4 md:p-6 lg:p-8 bg-gray-50 min-h-screen">
+    <div class="max-w-7xl mx-auto">
+        <h3 class="text-2xl md:text-3xl font-bold text-gray-800 text-center mb-6">
+            <i title="Shopping Cart" class="fa-solid fa-bag-shopping mr-2 text-blue-600"></i>
+            My Cart
+        </h3>
+        <ng-template #empty>
+            <section class="flex justify-center items-center h-[50vh] bg-white rounded-2xl shadow-sm border border-gray-100">
+                <div class="text-gray-500 flex flex-col justify-center items-center">
+                <div class="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+                    <span class="text-5xl text-gray-300">
+                        <i class="fa-solid fa-bag-shopping"></i>
+                    </span>
+                </div>
+                <h4 class="text-xl md:text-2xl font-semibold text-gray-700 mb-2">Your cart is empty</h4>
+                <p class="text-sm text-gray-400 mb-6">Looks like you haven't added anything yet.</p>
+                <a [routerLink]="['/']" 
+                class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors shadow-sm">
+                    Continue Shopping
+                </a>
+            </div>
+            </section>
+        </ng-template>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 xl:gap-8" *ngIf="cart.length>0; else empty">
+            
+            <!-- Left Column (Items) -->
+            <article class="col-span-1 lg:col-span-2">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
+                    <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center text-sm font-semibold text-gray-600">
+                        <span>Items ({{cart.length}})</span>
+                        <span class="hidden md:inline">Total: &#8377;{{total | number:'1.2-2'}}</span>
+                    </div>
+                    
+                    <div class="overflow-y-auto max-h-[500px] lg:max-h-[600px] custom-scrollbar">
+                        <app-cartitem 
+                        *ngFor="let item of cart"
+                        [item]="item"
+                        >
+                        </app-cartitem>
+                    </div>
+                </div>
+            </article>
+
+            <!-- Right Column (Summary) -->
+            <article class="col-span-1 lg:col-span-1">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden sticky top-4">
+                    <div class="p-4 md:p-5 lg:p-6">
+                        
+                        <!-- Promo Code -->
+                        <div class="mb-6">
+                            <label for="promo-code" class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Promo Code</label>
+                            <div class="flex flex-row border border-gray-300 rounded-lg overflow-hidden focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all">
+                                <input
+                                    type="text"
+                                    name="promo-code"
+                                    [(ngModel)]="promoCode"
+                                    class="w-full px-3 py-2.5 text-sm outline-none bg-gray-50 focus:bg-white"
+                                    placeholder="Enter coupon code">
+                                <button
+                                    type="button"
+                                    (click)="applyCoupon()"
+                                    [disabled]="isApplyingCoupon"
+                                    class="px-5 py-2.5 text-sm font-semibold text-white bg-gray-800 hover:bg-gray-900 transition-colors disabled:opacity-60 whitespace-nowrap">
+                                    {{isApplyingCoupon ? 'Applying' : 'Apply'}}
+                                </button>
+                            </div>
+                            <p *ngIf="appliedCouponCode" class="mt-2 text-xs text-green-600 font-medium flex items-center">
+                                <i class="fa-solid fa-circle-check mr-1.5"></i> Applied: {{appliedCouponCode}}
+                            </p>
+                            <p *ngIf="couponMessage" class="mt-2 text-xs font-medium" [ngClass]="couponMessageType === 'success' ? 'text-green-600' : 'text-red-500'">
+                                {{couponMessage}}
+                            </p>
+                        </div>
+
+                        <hr class="border-gray-100 my-5">
+
+                        <!-- Order Summary -->
+                        <h4 class="text-base font-bold text-gray-800 mb-4">Order Summary</h4>
+                        
+                        <div class="space-y-3 text-sm">
+                            <div class="flex justify-between text-gray-600">
+                                <span>Subtotal ({{totalQty | number:'1.0-1'}} Items)</span>
+                                <span class="font-medium text-gray-900">&#8377;{{total | number:'1.2-2'}}</span>
+                            </div>
+                            
+                            <div class="flex justify-between text-gray-600" *ngIf="shippingCost > 0">
+                                <span>Shipping Cost</span>
+                                <span class="font-medium text-gray-900">&#8377;{{shippingCost | number:'1.2-2'}}</span>
+                            </div>
+                            
+                            <div class="flex justify-between text-green-600" *ngIf="discountAmount > 0">
+                                <span>Discount</span>
+                                <span class="font-medium">-&#8377;{{discountAmount | number:'1.2-2'}}</span>
+                            </div>
+                            
+                            <div *ngFor="let tax of appliedTaxes" class="flex justify-between text-gray-600">
+                                <span>{{tax.description}}</span>
+                                <span class="font-medium text-gray-900">&#8377;{{tax.amount | number:'1.2-2'}}</span>
+                            </div>
+                        </div>
+
+                        <hr class="border-gray-100 my-5">
+
+                        <div class="flex justify-between items-center mb-6">
+                            <span class="text-lg font-bold text-gray-900">Estimated Total</span>
+                            <span class="text-xl font-extrabold text-blue-600">&#8377;{{estimatedTotal | number:'1.2-2'}}</span>
+                        </div>
+
+                        <button 
+                            type="button" 
+                            (click)="goToCheckout()"
+                            class="w-full py-3.5 rounded-lg text-center font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all flex items-center justify-center text-sm md:text-base">
+                            <i class="fa-solid fa-lock mr-2"></i>
+                            Proceed to Checkout
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Addresses Section -->
+                <div class="mt-6 space-y-4">
+                    <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm hover:border-blue-300 transition-colors">
+                        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                            <div class="flex items-center">
+                                <i class="fa-solid fa-truck text-gray-400 mr-2.5"></i>
+                                <h4 class="text-sm font-bold text-gray-800">Shipping Address</h4>
+                            </div>
+                            <button type="button" [routerLink]="['/profile']" [queryParams]="{tab: 'addresses'}" class="text-xs font-semibold text-blue-600 hover:text-blue-800">Change Address</button>
+                        </div>
+                    </div>
+
+                    <label class="flex items-start sm:items-center gap-3 p-3 bg-white rounded-lg border border-gray-100 cursor-pointer hover:bg-gray-50">
+                        <input type="checkbox" class="h-4 w-4 mt-0.5 sm:mt-0 text-blue-600 rounded border-gray-300 focus:ring-blue-500" [(ngModel)]="billingSameAsShipping">
+                        <span class="text-sm font-medium text-gray-700">Billing Address is same as Shipping</span>
+                    </label>
+
+                    <div *ngIf="!billingSameAsShipping" class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm hover:border-blue-300 transition-colors animate-fade-in-down">
+                        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                            <div class="flex items-center">
+                                <i class="fa-solid fa-file-invoice text-gray-400 mr-2.5"></i>
+                                <h4 class="text-sm font-bold text-gray-800">Billing Address</h4>
+                            </div>
+                            <button type="button" [routerLink]="['/profile']" [queryParams]="{tab: 'addresses'}" class="text-xs font-semibold text-blue-600 hover:text-blue-800">Change Address</button>
+                        </div>
+                    </div>
+                </div>
+            </article>
         </div>
-        </section>
-    </ng-template>
-
-    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-6 h-full" *ngIf="cart.length>0; else empty">
-    <article class="col-span-1 md:col-span-2 lg:col-span-2 ">
-        <div class="border-y-2 border-gray-300 overflow-y-auto h-[480px] p-2">
-            <app-cartitem 
-            *ngFor="let item of cart"
-            [item]="item"
-            >
-            </app-cartitem>
-        </div>
-       
-        <div class="flex flex-wrap justify-between gap-x-4 pt-3">
-            <div class="text-lg font-semibold">Items: {{cart.length}}</div>
-            <div class="text-lg font-semibold">Total : <span class="ml-4">&#8377;{{total}}</span></div>
-        </div>
-    </article>
-    <article class="col-span-1 md:col-span-1 lg:col-span-1 mb-4">
-        <div class="flex flex-col">
-            <div class="flex-1">
-                <label for="promo-code" class="font-semibold text-gray-600">ENTER PROMO CODE</label>
-                <div class="flex flex-col sm:flex-row border border-gray-600">
-                    <input
-                        type="text"
-                        name="promo-code"
-                        [(ngModel)]="promoCode"
-                        class="p-4 w-full sm:flex-1 sm:w-auto"
-                        placeholder="Enter coupon code">
-                    <button
-                        type="button"
-                        (click)="applyCoupon()"
-                        [disabled]="isApplyingCoupon"
-                        class="px-8 py-4 lg:px-16 text-center text-white bg-gray-800 disabled:opacity-60">
-                        {{isApplyingCoupon ? 'Applying...' : 'Submit'}}
-                    </button>
-                </div>
-                <p *ngIf="appliedCouponCode" class="mt-2 text-sm text-green-700 font-medium">
-                    Applied coupon: {{appliedCouponCode}}
-                </p>
-                <p *ngIf="couponMessage" class="mt-2 text-sm" [ngClass]="couponMessageType === 'success' ? 'text-green-700' : 'text-red-600'">
-                    {{couponMessage}}
-                </p>
-            </div>
-            <div>
-            <div class="mt-8">
-                <div class="flex flex-wrap justify-between gap-x-4 pb-3">
-                    <div>
-                        <span class="text-xl text-gray-600">Net Total ({{totalQty | number:'1.1-1'}} Items)</span>
-                    </div>
-                    <div class="text-right">
-                        <span class="text-xl text-gray-600">&#8377;{{total | number:'1.2-2'}}</span>
-                    </div>
-                </div>
-                <div class="flex flex-wrap justify-between gap-x-4 pb-3" *ngIf="shippingCost > 0">
-                    <div>
-                        <span class="text-xl text-gray-600">Shipping Cost</span>
-                    </div>
-                    <div class="text-right">
-                        <span class="text-xl text-gray-600">&#8377;{{shippingCost | number:'1.2-2'}}</span>
-                    </div>
-                </div>
-                <div class="flex flex-wrap justify-between gap-x-4 pb-3">
-                    <div>
-                        <span class="text-xl text-gray-600">Discount</span>
-                    </div>
-                    <div class="text-right">
-                        <span class="text-xl text-gray-600">&#8377;{{discountAmount | number:'1.2-2'}}</span>
-                    </div>
-                </div>
-                <div *ngFor="let tax of appliedTaxes" class="flex flex-wrap justify-between gap-x-4 pb-3">
-                    <div>
-                        <span class="text-xl text-gray-600">{{tax.description}}</span>
-                    </div>
-                    <div class="text-right">
-                        <span class="text-xl text-gray-600">&#8377;{{tax.amount | number:'1.2-2'}}</span>
-                    </div>
-                </div>
-
-                <div class="flex flex-wrap justify-between gap-x-4 pt-8">
-                    <div>
-                        <span class="text-2xl font-semibold">Estimated Total</span>
-                    </div>
-                    <div class="text-right">
-                        <span class="text-2xl font-semibold">&#8377;{{estimatedTotal | number:'1.2-2'}}</span>
-                    </div>
-                </div>
-
-            </div>
-                
-            </div>
-            <div class="flex justify-center mt-8">
-                <button 
-                type="submit" 
-                (click)="goToCheckout()"
-                class="w-[80%] px-16 lg:px-20 py-4 text-center font-semibold text-white bg-[#3c64a9]">
-                    <i class="fa-solid fa-lock mr-2"></i>
-                    Checkout
-                </button>
-            </div>
-
-            <div class="mt-8 rounded-xl border border-gray-200 bg-white px-5 py-4">
-                <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-                    <h4 class="text-xl font-semibold text-gray-800">Shipping Address</h4>
-                    <button type="button" class="text-gray-700 hover:text-gray-900">Add a new address</button>
-                </div>
-            </div>
-
-            <label class="mt-6 inline-flex items-center gap-3 text-xl text-gray-700">
-                <input type="checkbox" class="h-5 w-5" [(ngModel)]="billingSameAsShipping">
-                <span>Billing Address is same as Shipping Address</span>
-            </label>
-
-            <div class="mt-6 rounded-xl border border-gray-200 bg-white px-5 py-4" *ngIf="!billingSameAsShipping">
-                <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-                    <h4 class="text-xl font-semibold text-gray-800">Billing Address</h4>
-                    <button type="button" class="text-gray-700 hover:text-gray-900">Add a new address</button>
-                </div>
-            </div>
-        </div>
-    </article>
     </div>
 </section>

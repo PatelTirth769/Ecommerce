@@ -3,6 +3,8 @@ import { FirebaseAuthService } from '../../core/services/firebase-auth.service';
 import { PaymentService } from '../../core/services/payment.service';
 import { Observable, of, switchMap, catchError, BehaviorSubject } from 'rxjs';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
+import { INDIA_STATE_NAMES, getCitiesForState } from '../../shared/data/india-states-cities';
 
 @Component({
   selector: 'app-buyer-profile',
@@ -24,6 +26,10 @@ export class BuyerProfileComponent implements OnInit {
   customerName: string | null = null;
   showAddAddressForm = false;
   editingAddressName: string | null = null;
+
+  // State / City combobox options for the address form
+  stateOptions: { name: string }[] = INDIA_STATE_NAMES.map(name => ({ name }));
+  cityOptions: { name: string }[] = getCitiesForState(null).map(name => ({ name }));
   
   businessForm!: FormGroup;
   isSavingBusiness = false;
@@ -40,10 +46,17 @@ export class BuyerProfileComponent implements OnInit {
   constructor(
     public authService: FirebaseAuthService,
     private paymentService: PaymentService,
-    private fb: FormBuilder
+    private fb: FormBuilder,
+    private route: ActivatedRoute
   ) {}
 
   ngOnInit(): void {
+    this.route.queryParams.subscribe(params => {
+      if (params['tab']) {
+        this.activeTab = params['tab'];
+      }
+    });
+
     this.profileData$ = this.authService.user$;
     
     // Initialize Business Form with regex validations
@@ -92,6 +105,11 @@ export class BuyerProfileComponent implements OnInit {
       is_primary_address: [0],
       is_shipping_address: [0],
       disabled: [0]
+    });
+
+    // Keep the City combobox's options scoped to whichever state is selected
+    this.addressForm.get('state')?.valueChanges.subscribe((state: string) => {
+      this.cityOptions = getCitiesForState(state).map(name => ({ name }));
     });
 
     // Fetch user orders

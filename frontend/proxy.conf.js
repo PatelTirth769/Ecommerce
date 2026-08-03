@@ -13,6 +13,8 @@ const PUBLIC_RESOURCE_PATTERNS = [
   '/api/resource/Pricing Rule',
   '/api/method/frappe.client.get_list',
   '/api/resource/Quotation',
+  '/api/resource/Wishlist',
+  '/api/resource/File',
   '/all-products'
 ];
 
@@ -25,7 +27,8 @@ const USER_SESSION_PATTERNS = [
   '/api/method/erpnext.shopping_cart',
   '/api/method/erpnext.e_commerce.shopping_cart',
   '/api/method/webshop.shopping_cart',
-  '/api/method/webshop.webshop.shopping_cart'
+  '/api/method/webshop.webshop.shopping_cart',
+  '/api/method/webshop.webshop.doctype.wishlist.wishlist'
 ];
 
 function isPublicResource(url) {

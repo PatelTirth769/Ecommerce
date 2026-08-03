@@ -83,6 +83,7 @@ export interface PricingRuleSlab {
   minQty: number;
   maxQty: number;
   discountPercentage: number;
+  discountAmount: number;
   fixedPrice: number;
   uom: string;
 }
@@ -423,6 +424,7 @@ export class WebsiteItemService {
               minQty: Number(doc.min_qty || 0),
               maxQty: Number(doc.max_qty || 0),
               discountPercentage: Number(doc.discount_percentage || 0),
+              discountAmount: Number(doc.discount_amount || 0),
               fixedPrice: Number(doc.price_list_rate || doc.rate || 0),
               uom: doc.uom || ''
             } as PricingRuleSlab))
@@ -471,6 +473,48 @@ export class WebsiteItemService {
       );
   }
 
+  // Create a new Item Review doc, matching the fields ERPNext's own webshop
+  // "Write a Review" form saves: website_item, item, user, customer,
+  // review_title, rating (0-1, i.e. stars/5), comment.
+  createItemReview(payload: {
+    website_item: string;
+    item: string;
+    user: string;
+    customer: string;
+    review_title: string;
+    rating: number;
+    comment: string;
+  }): Observable<any> {
+    return this.http.post(this.itemReviewEndpoint, payload, { headers: this.authHeaders });
+  }
+
+  // All files attached (in ERPNext's own "Attachments" panel) to a given doc,
+  // e.g. a Website Item or Item — so the product gallery can show every image
+  // an admin uploaded there, not just the single website_image/thumbnail field.
+  getAttachedImages(doctype: string, docname: string | undefined | null): Observable<string[]> {
+    if (!docname) return of([]);
+
+    const params = new HttpParams()
+      .set('filters', JSON.stringify([
+        ['attached_to_doctype', '=', doctype],
+        ['attached_to_name', '=', docname]
+      ]))
+      .set('fields', JSON.stringify(['file_url']))
+      .set('limit_page_length', '0');
+
+    return this.http.get<{ data: { file_url: string }[] }>(this.buildApiUrl('api/resource/File'), {
+      params,
+      headers: this.authHeaders
+    }).pipe(
+      map((res) => (res?.data || [])
+        .map((row) => row.file_url)
+        .filter((url): url is string => Boolean(url))
+        .map((url) => this.resolveImageUrl(url))
+      ),
+      catchError(() => of([] as string[]))
+    );
+  }
+
   private filterReviewsForItem(docs: Record<string, unknown>[], websiteItem: WebsiteItem): Record<string, unknown>[] {
     const routeValue = websiteItem.route ? websiteItem.route.replace(/^\//, '') : '';
     const candidateSet = new Set(
@@ -515,9 +559,10 @@ export class WebsiteItemService {
     });
   }
 
-  // Fetch all active selling Pricing Rules and build a Map: item_code → discount info.
-  // Used by list pages to show discounted prices without N per-item API calls.
-  getAllActivePricingRules(): Observable<Map<string, {discountPct: number, fixedPrice: number, minQty: number, maxQty: number}>> {
+  // Fetch all active selling Pricing Rules and build a Map: item_code → ALL matching slabs
+  // (one entry per qty band), so list/card pages can apply the same tiered pricing as the
+  // product detail page instead of only the single best-discount rule.
+  getAllActivePricingRuleSlabs(): Observable<Map<string, PricingRuleSlab[]>> {
     const listParams = new HttpParams()
       .set('fields', JSON.stringify(['name']))
       .set('filters', JSON.stringify([
@@ -532,7 +577,7 @@ export class WebsiteItemService {
     ).pipe(
       switchMap(listRes => {
         const names: string[] = (listRes?.data || []).map((r: any) => r.name);
-        if (!names.length) return of(new Map<string, any>());
+        if (!names.length) return of(new Map<string, PricingRuleSlab[]>());
 
         const fullDocs$ = names.map(name =>
           this.http.get<{data: any}>(
@@ -543,28 +588,32 @@ export class WebsiteItemService {
 
         return forkJoin(fullDocs$).pipe(
           map(docs => {
-            const ruleMap = new Map<string, {discountPct: number, fixedPrice: number, minQty: number, maxQty: number}>();
+            const slabMap = new Map<string, PricingRuleSlab[]>();
             docs.forEach(doc => {
               if (!doc) return;
               const items: any[] = doc.items || doc.pricing_rule_item_code || [];
-              const discountPct = Number(doc.discount_percentage || 0);
-              const fixedPrice = Number(doc.price_list_rate || doc.rate || 0);
-              const minQty = Number(doc.min_qty || 0);
-              const maxQty = Number(doc.max_qty || 0);
+              const slab: PricingRuleSlab = {
+                name: doc.name || '',
+                title: doc.title || '',
+                minQty: Number(doc.min_qty || 0),
+                maxQty: Number(doc.max_qty || 0),
+                discountPercentage: Number(doc.discount_percentage || 0),
+                discountAmount: Number(doc.discount_amount || 0),
+                fixedPrice: Number(doc.price_list_rate || doc.rate || 0),
+                uom: doc.uom || ''
+              };
               items.forEach((row: any) => {
                 if (!row.item_code) return;
-                const existing = ruleMap.get(row.item_code);
-                // Keep the rule with highest discount
-                if (!existing || discountPct > existing.discountPct) {
-                  ruleMap.set(row.item_code, { discountPct, fixedPrice, minQty, maxQty });
-                }
+                const existing = slabMap.get(row.item_code) || [];
+                existing.push(slab);
+                slabMap.set(row.item_code, existing);
               });
             });
-            return ruleMap;
+            return slabMap;
           })
         );
       }),
-      catchError(() => of(new Map<string, any>()))
+      catchError(() => of(new Map<string, PricingRuleSlab[]>()))
     );
   }
 }

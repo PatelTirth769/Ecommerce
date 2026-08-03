@@ -21,8 +21,9 @@
       </div>
 
       <!-- Wishlist Button Overlay -->
-      <button 
-        (click)="toggleWishlist(product)"
+      <button
+        type="button"
+        (click)="toggleWishlist(product, $event)"
         [title]="isProductInWishlist(product) ? 'Remove from Wishlist' : 'Add to Wishlist'"
         aria-label="add to wishlist"
         class="absolute top-3 right-3 bg-white/80 backdrop-blur-sm border border-gray-100 rounded-full h-8 w-8 flex items-center justify-center hover:scale-110 transition-all shadow-sm"
@@ -100,7 +101,7 @@
 
       <!-- Action Buttons -->
       <div class="mt-auto">
-        <button 
+        <button
           *ngIf="isProductInCart(product); else addbtn"
           (click)="removeFromCart(product)"
           class="w-full bg-red-50 text-red-600 hover:bg-red-600 hover:text-white font-bold text-xs py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
@@ -108,18 +109,33 @@
           <i class="fa-solid fa-trash-can"></i>
           Remove
         </button>
-        
+
         <ng-template #addbtn>
-          <button 
-            (click)="addToCart(product)"
-            *ngIf="product.stock === 'In stock'; else outofstock"
-            class="w-full bg-gray-900 text-white hover:bg-blue-600 text-xs font-bold py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
-          >
-            <i class="fa-solid fa-bag-shopping"></i>
-            Add to Cart
-          </button>
+          <ng-container *ngIf="product.stock === 'In stock'; else outofstock">
+            <!-- Quantity Stepper -->
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Qty</span>
+              <div class="flex items-center rounded border border-gray-200 bg-white overflow-hidden">
+                <button type="button" (click)="decreaseQty()" class="w-6 h-6 flex items-center justify-center hover:bg-gray-50 text-gray-500 transition-colors">
+                  <i class="fa-solid fa-minus text-[9px]"></i>
+                </button>
+                <input type="number" min="1" [value]="qty" (change)="onQtyChange($event)" class="w-8 h-6 border-x border-gray-200 bg-white text-center text-xs font-bold text-gray-800 focus:outline-none px-0" />
+                <button type="button" (click)="increaseQty()" class="w-6 h-6 flex items-center justify-center hover:bg-gray-50 text-gray-500 transition-colors">
+                  <i class="fa-solid fa-plus text-[9px]"></i>
+                </button>
+              </div>
+            </div>
+
+            <button
+              (click)="addToCart(product)"
+              class="w-full bg-gray-900 text-white hover:bg-blue-600 text-xs font-bold py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
+            >
+              <i class="fa-solid fa-bag-shopping"></i>
+              Add to Cart
+            </button>
+          </ng-container>
           <ng-template #outofstock>
-            <button 
+            <button
               disabled
               class="w-full bg-gray-100 text-gray-400 border border-gray-200 text-xs font-bold py-2 rounded-lg cursor-not-allowed flex items-center justify-center gap-2"
             >

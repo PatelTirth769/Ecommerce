@@ -81,6 +81,8 @@ export class ProductComponent implements OnInit, OnDestroy {
   
   onFilter(value:boolean){
     this.isFilter=value;
+    // Prevent the page behind the mobile filter drawer from scrolling
+    document.body.style.overflow = value ? 'hidden' : '';
   }
 
   resetFilter(){
@@ -91,5 +93,6 @@ export class ProductComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.subsFilterProducts.unsubscribe();
+    document.body.style.overflow = '';
   }
 }

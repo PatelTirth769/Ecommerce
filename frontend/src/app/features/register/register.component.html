@@ -6,9 +6,6 @@
         <h2>New User</h2>
         <span class="badge">Not Saved</span>
       </div>
-      <div class="header-right">
-        <button type="submit" (click)="onSubmit()" [disabled]="isLoading" class="btn-save">Save</button>
-      </div>
     </div>
 
     <div class="register-tabs">
@@ -35,16 +32,15 @@
               </div>
               <div class="erp-form-group">
                 <label>Mobile Number *</label>
-                <input type="tel" formControlName="mobile">
+                <input type="tel" formControlName="mobile" maxlength="10" (keypress)="onMobileKeyPress($event)">
+                <span class="error-hint" *ngIf="registerForm.get('mobile')?.hasError('required') && registerForm.get('mobile')?.touched">Mobile number is required</span>
+                <span class="error-hint" *ngIf="registerForm.get('mobile')?.hasError('pattern') && registerForm.get('mobile')?.touched">Mobile number must be exactly 10 digits</span>
               </div>
               <div class="erp-form-group">
                 <label>First Name *</label>
                 <input type="text" formControlName="first_name">
               </div>
-              <div class="erp-form-group">
-                <label>Middle Name</label>
-                <input type="text" formControlName="middle_name">
-              </div>
+
               <div class="erp-form-group">
                 <label>Last Name *</label>
                 <input type="text" formControlName="last_name">
@@ -61,10 +57,6 @@
 
             <!-- Column 3 -->
             <div class="erp-col">
-              <div class="erp-form-group">
-                <label>Language</label>
-                <input type="text" formControlName="language">
-              </div>
 
               <div class="erp-check-group">
                 <input type="checkbox" formControlName="send_welcome_email" id="welcome">
@@ -79,18 +71,38 @@
             <div class="erp-col">
               <div class="erp-form-group">
                 <label>Password *</label>
-                <input type="password" formControlName="password">
+                <div class="password-wrapper">
+                  <input [type]="showPassword ? 'text' : 'password'" formControlName="password">
+                  <i class="fa-regular password-toggle" [ngClass]="showPassword ? 'fa-eye-slash' : 'fa-eye'" (click)="showPassword = !showPassword"></i>
+                </div>
+                <p class="error-hint" *ngIf="registerForm.get('password')?.hasError('required') && registerForm.get('password')?.touched">
+                  Password is required.
+                </p>
+                <p class="error-hint" *ngIf="registerForm.get('password')?.hasError('minlength') && registerForm.get('password')?.touched">
+                  Password must be at least 6 characters long.
+                </p>
+                <p class="error-hint" *ngIf="registerForm.get('password')?.hasError('serverError') && registerForm.get('password')?.touched">
+                  {{ registerForm.get('password')?.errors?.['serverError'] }}
+                </p>
               </div>
             </div>
             <div class="erp-col">
               <div class="erp-form-group">
                 <label>Confirm Password *</label>
-                <input type="password" formControlName="confirmPassword">
+                <div class="password-wrapper">
+                  <input [type]="showConfirmPassword ? 'text' : 'password'" formControlName="confirmPassword">
+                  <i class="fa-regular password-toggle" [ngClass]="showConfirmPassword ? 'fa-eye-slash' : 'fa-eye'" (click)="showConfirmPassword = !showConfirmPassword"></i>
+                </div>
                 <p *ngIf="registerForm.hasError('mismatch') && registerForm.get('confirmPassword')?.touched" class="error-hint">Passwords do not match</p>
               </div>
             </div>
           </div>
 
+          <div style="margin-top: 2rem; display: flex; justify-content: flex-end;">
+            <button type="submit" (click)="onSubmit()" [disabled]="isLoading" class="btn-save w-full md:w-auto px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors" style="width: 100%; max-width: 200px; justify-content: center;">
+              {{ isLoading ? 'Saving...' : 'Save & Register' }}
+            </button>
+          </div>
 
         </form>
       </div>

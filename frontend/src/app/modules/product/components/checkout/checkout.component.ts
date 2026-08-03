@@ -6,6 +6,7 @@ import { PaymentService } from 'src/app/core/services/payment.service';
 import { ToastService } from 'src/app/core/services/toast.service';
 import { environment } from 'src/environments/environment';
 import { FirebaseAuthService } from 'src/app/core/services/firebase-auth.service';
+import { INDIA_STATE_NAMES, getCitiesForState } from 'src/app/shared/data/india-states-cities';
 
 @Component({
   selector: 'app-checkout',
@@ -21,6 +22,9 @@ export class CheckoutComponent implements OnInit {
   appliedTaxes: TaxDetail[] = [];
   grandTotal: number = 0;
   shippingForm!: FormGroup;
+
+  stateOptions: { name: string }[] = INDIA_STATE_NAMES.map(name => ({ name }));
+  cityOptions: { name: string }[] = getCitiesForState(null).map(name => ({ name }));
 
   constructor(
     private cartService: CartService,
@@ -87,6 +91,11 @@ export class CheckoutComponent implements OnInit {
         console.warn('Failed to parse stored user info for checkout form prefill', e);
       }
     }
+
+    this.shippingForm.get('state')?.valueChanges.subscribe((state: string) => {
+      this.cityOptions = getCitiesForState(state).map(name => ({ name }));
+    });
+
     this.getTotal();
   }
 

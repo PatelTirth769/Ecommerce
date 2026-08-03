@@ -4,8 +4,10 @@ import { Location } from '@angular/common';
 import { ProductService } from '../../../services/product.service';
 import { Product } from '../../../model';
 import { CartService } from 'src/app/core/services/cart.service';
-import { Subscription, catchError, forkJoin, map, of, switchMap } from 'rxjs';
+import { Subscription, catchError, forkJoin, map, of, switchMap, take } from 'rxjs';
 import { ItemRecord, PricingRuleSlab, WebsiteItem, WebsiteItemService } from 'src/app/core/services/website-item.service';
+import { FirebaseAuthService } from 'src/app/core/services/firebase-auth.service';
+import { WishlistService, WishlistItem } from 'src/app/core/services/wishlist.service';
 
 
 interface DetailRow {
@@ -31,6 +33,22 @@ interface ReviewRow {
   selector: 'app-productdetail',
   templateUrl: './productdetail.component.html',
   styles: [
+    `
+    .reviews-container::-webkit-scrollbar {
+      width: 6px;
+    }
+    .reviews-container::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 4px;
+    }
+    .reviews-container::-webkit-scrollbar-thumb {
+      background: #c1c1c1;
+      border-radius: 4px;
+    }
+    .reviews-container::-webkit-scrollbar-thumb:hover {
+      background: #a8a8a8;
+    }
+    `
   ]
 })
 export class ProductdetailComponent implements OnInit, OnDestroy{
@@ -40,6 +58,7 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
   selectedSize!:string;
   category='';
   cart: Product[] = [];
+  wishlist: WishlistItem[] = [];
   relatedProductList: Product[] = [];
 
   variants: {item: ItemRecord, sellingPrice: number}[] = [];
@@ -92,12 +111,25 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
   private fallbackImage = 'assets/images/logo.png';
   private cartSub!: Subscription;
 
+  // Write a Review modal state
+  showReviewModal = false;
+  reviewTitle = '';
+  reviewRating = 0;
+  reviewHoverRating = 0;
+  reviewComment = '';
+  isSubmittingReview = false;
+  reviewSubmitError = '';
+  reviewSubmitSuccess = false;
+
+  private wishlistSub!: Subscription;
 
   constructor(
     private route:ActivatedRoute,
     private productService:ProductService,
     private cartService:CartService,
     private websiteItemService: WebsiteItemService,
+    private authService: FirebaseAuthService,
+    private wishlistService: WishlistService,
     private router:Router,
     private location:Location
   ){}
@@ -105,6 +137,9 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
   ngOnInit(): void {
     this.cartSub = this.cartService.cart$.subscribe(cartItems => {
       this.cart = cartItems;
+    });
+    this.wishlistSub = this.wishlistService.wishlist$.subscribe(items => {
+      this.wishlist = items;
     });
     this.loadProduct(this.route.snapshot.params['id']);
     this.route.params.subscribe(()=>{
@@ -115,6 +150,16 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
 
   ngOnDestroy(): void {
     this.cartSub?.unsubscribe();
+    this.wishlistSub?.unsubscribe();
+  }
+
+  toggleWishlist(product: Product): void {
+    this.wishlistService.toggleWishlist(product).subscribe();
+  }
+
+  isProductInWishlist(product: Product): boolean {
+    const itemCode = product.item_code || product.type || '';
+    return this.wishlist.some(w => w.item_code === itemCode);
   }
 
   loadProduct(identifier: string){
@@ -214,6 +259,7 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
       this.product = this.toErpProduct(result.websiteItem, result.item, result.sellingPrice);
       this.images = this.product.images;
       this.imageSrc = this.images[0] || this.fallbackImage;
+      this.loadAttachedImages(result.websiteItem.name, result.item?.name);
       this.category = this.product.category;
       this.title = this.product.title;
       this.discount = 0;
@@ -252,7 +298,7 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
   // Build display slabs from ERPNext Pricing Rules
   buildPricingRuleSlabs(rules: PricingRuleSlab[], basePrice: number, uom: string): void {
     this.pricingRuleSlabs = rules
-      .filter(r => r.discountPercentage > 0 || r.fixedPrice > 0)
+      .filter(r => r.discountPercentage > 0 || r.fixedPrice > 0 || r.discountAmount > 0)
       .map(r => {
         const discPct = r.discountPercentage;
         let price: number;
@@ -260,6 +306,8 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
           price = r.fixedPrice;
         } else if (discPct > 0 && basePrice > 0) {
           price = Math.round(basePrice * (1 - discPct / 100));
+        } else if (r.discountAmount > 0) {
+          price = Math.max(basePrice - r.discountAmount, 0);
         } else {
           price = basePrice;
         }
@@ -840,6 +888,92 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
     return star <= Math.round(this.erpAverageRating);
   }
 
+  openReviewModal(): void {
+    this.reviewTitle = '';
+    this.reviewRating = 0;
+    this.reviewHoverRating = 0;
+    this.reviewComment = '';
+    this.reviewSubmitError = '';
+    this.showReviewModal = true;
+  }
+
+  closeReviewModal(): void {
+    this.showReviewModal = false;
+  }
+
+  setReviewRating(star: number): void {
+    this.reviewRating = star;
+  }
+
+  submitReview(): void {
+    this.reviewSubmitError = '';
+
+    if (!this.reviewTitle.trim()) {
+      this.reviewSubmitError = 'Please add a headline for your review.';
+      return;
+    }
+    if (this.reviewRating <= 0) {
+      this.reviewSubmitError = 'Please select an overall rating.';
+      return;
+    }
+
+    const websiteItemName = this.currentWebsiteItem?.name;
+    if (!websiteItemName) {
+      this.reviewSubmitError = 'Unable to identify this product. Please refresh and try again.';
+      return;
+    }
+
+    this.isSubmittingReview = true;
+
+    this.authService.user$.pipe(take(1)).subscribe(user => {
+      if (!user || !user.email) {
+        this.isSubmittingReview = false;
+        this.reviewSubmitError = 'Please log in to write a review.';
+        return;
+      }
+
+      this.authService.getCustomerByEmail(user.email).subscribe({
+        next: (customerName: string | null) => {
+          const payload = {
+            website_item: websiteItemName,
+            item: this.product.item_code || this.product.type,
+            user: user.email,
+            customer: customerName || user.email,
+            review_title: this.reviewTitle.trim(),
+            rating: this.reviewRating / 5,
+            comment: this.reviewComment.trim()
+          };
+
+          this.websiteItemService.createItemReview(payload).subscribe({
+            next: () => {
+              this.isSubmittingReview = false;
+              this.showReviewModal = false;
+              this.reviewSubmitSuccess = true;
+              setTimeout(() => this.reviewSubmitSuccess = false, 3000);
+
+              // Refresh the reviews list so the new review shows up immediately
+              this.websiteItemService.getWebsiteItemReviews(this.currentWebsiteItem).subscribe(reviews => {
+                this.currentReviews = reviews as any[];
+                this.erpReviews = this.extractErpReviews(this.currentWebsiteItem, null, reviews as any[]);
+                this.setErpReviewStats(this.erpReviews);
+              });
+            },
+            error: (err) => {
+              console.error('Failed to submit review', err);
+              this.isSubmittingReview = false;
+              this.reviewSubmitError = 'Failed to submit your review. Please try again.';
+            }
+          });
+        },
+        error: (err) => {
+          console.error('Failed to resolve customer for review', err);
+          this.isSubmittingReview = false;
+          this.reviewSubmitError = 'Could not verify your customer profile.';
+        }
+      });
+    });
+  }
+
   private parseOfferText(value: string): OfferRow | null {
     const normalized = this.normalizeDetailValue(value);
     if (!normalized) {
@@ -970,5 +1104,33 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
     this.imageSrc=value;
     this.selectedImage=index;
   }
-  
+
+  // Pull in every file uploaded via ERPNext's own "Attachments" panel on the
+  // Website Item / Item doc. The Attachments list is the source of truth: the
+  // website_image/thumbnail fields almost always point at the same photo as
+  // one of the attachments (just a different filename or a "_small" resized
+  // copy), so we REPLACE the field-derived images rather than add to them —
+  // merging both was showing the same picture 2-3 times over.
+  private loadAttachedImages(websiteItemName: string, itemName?: string): void {
+    forkJoin({
+      websiteItemImages: this.websiteItemService.getAttachedImages('Website Item', websiteItemName).pipe(catchError(() => of([] as string[]))),
+      itemImages: this.websiteItemService.getAttachedImages('Item', itemName).pipe(catchError(() => of([] as string[])))
+    }).subscribe(({ websiteItemImages, itemImages }) => {
+      const attachments = Array.from(new Set([...websiteItemImages, ...itemImages]));
+      const finalImages = attachments.length > 0 ? attachments : this.images;
+      if (finalImages.length === 0) return;
+
+      const currentImage = this.imageSrc;
+      this.images = finalImages;
+      this.product.images = finalImages;
+
+      const idx = finalImages.indexOf(currentImage);
+      if (idx >= 0) {
+        this.selectedImage = idx;
+      } else {
+        this.imageSrc = finalImages[0];
+        this.selectedImage = 0;
+      }
+    });
+  }
 }

@@ -874,10 +874,24 @@ export class CartService {
     const existingItem = existingIndex >= 0 ? this.cart[existingIndex] : null;
 
     let finalRate = rate > 0 ? rate : (existingItem ? Number(existingItem.price || 0) : 0);
-    const finalPriceListRate = priceListRate > 0 ? priceListRate : (existingItem ? Number(existingItem.prevprice || 0) : finalRate);
-    
-    if (existingItem && (existingItem.pricingRuleSlabs || existingItem.wholesale_pricing_tiers)) {
-      const tempProduct = { ...existingItem, price: finalPriceListRate || finalRate } as Product;
+    // The MRP shown on the storefront (item.mrp/prevprice, captured once when the item was
+    // first added from the product card/detail page) is kept sticky here instead of trusting
+    // the Quotation line's `price_list_rate` on every sync. ERPNext's cart RPCs
+    // (update_cart vs get_cart_quotation) have been observed to return different
+    // price_list_rate values for the same untouched line across calls, which made the
+    // "Save ₹X" amount flicker between values depending on which RPC last ran.
+    const existingMrp = existingItem ? Number(existingItem.mrp || existingItem.prevprice || 0) : 0;
+    const finalPriceListRate = existingMrp > 0 ? existingMrp : (priceListRate > 0 ? priceListRate : finalRate);
+
+    const hasSlabData = !!existingItem && (
+      (!!existingItem.pricingRuleSlabs && existingItem.pricingRuleSlabs.length > 0) ||
+      (!!existingItem.wholesale_pricing_tiers && existingItem.wholesale_pricing_tiers.length > 0)
+    );
+    if (hasSlabData) {
+      // Use the already-resolved selling rate (finalRate) as the fallback base — NOT
+      // finalPriceListRate, which is now the sticky MRP and would leak into the charged
+      // price for any item whose qty doesn't match a slab.
+      const tempProduct = { ...existingItem, price: finalRate } as Product;
       const localCalculatedRate = this.calculateItemUnitPrice(tempProduct, qty);
       if (localCalculatedRate > 0) {
         finalRate = localCalculatedRate;
@@ -902,9 +916,10 @@ export class CartService {
       type: item.item_code || item.item_name || itemCode,
       sizes: existingItem ? existingItem.sizes : [],
       images: finalImages,
-      stock: existingItem ? existingItem.stock : 'In cart',
+      stock: existingItem ? existingItem.stock : 'In stock',
       price: finalRate,
       prevprice: finalPriceListRate,
+      mrp: finalPriceListRate,
       qty,
       discount: finalDiscount,
       totalprice: finalAmount,
@@ -1067,11 +1082,13 @@ export class CartService {
         tap(products => {
           if (products.length > 0) {
             this.syncCart(products);
-          } else if (qty === 0 && this.cart.length === 0) {
-            this.syncCart(products);
-          } else if (qty === 0 && this.cart.length > 0) {
-            console.warn('[Cart] updateCartMethodApi returned 0 items for remove, but local cart has', this.cart.length, 'items. Refreshing from server.');
-            this.refreshFromServer().subscribe();
+          } else if (qty === 0) {
+            // Remove operation: server confirmed (returned empty or partial response).
+            // Trust the local optimistic update already done in remove().
+            // DO NOT refresh from server — that would restore the deleted item.
+            console.log('[Cart] remove confirmed by server. Local cart has', this.cart.length, 'items — keeping local state.');
+            this.products.next([...this.cart]);
+            this.getTotal();
           } else {
             console.warn('[Cart] updateCartMethodApi returned 0 items but qty was', qty, '. Keeping local state.');
           }
@@ -1447,9 +1464,29 @@ export class CartService {
       console.log('[Cart] remove() → emitting new array with', this.cart.length, 'items');
       this.products.next([...this.cart]);
       this.getTotal();
-    }
 
-    this.updateCartMethodApi(itemCode, 0).subscribe();
+      const quotationName = this.getStoredQuotationName();
+      if (this.cart.length === 0) {
+        // The cart is fully empty. We must delete the Quotation on the server
+        // so it doesn't come back on page refresh.
+        if (quotationName) {
+          this.http.delete(`${this.quotationEndpoint}/${encodeURIComponent(quotationName)}`, { headers: this.adminHeaders }).subscribe({
+            next: () => {
+              console.log('[Cart] Quotation explicitly deleted because cart is empty.');
+              this.setStoredQuotationName(null);
+            },
+            error: (err) => {
+              console.error('[Cart] Failed to delete empty quotation', err);
+              this.setStoredQuotationName(null); // Local drop as fallback
+            }
+          });
+        }
+      } else {
+        // Items remain. updateCartMethodApi with qty=0 sometimes fails to remove on backend.
+        // We use the robust REST PUT sync to guarantee the backend matches the local array exactly.
+        this.persistCartToQuotation().subscribe();
+      }
+    }
   }
 
   updateQtyAndTotalPrice(item:Product){

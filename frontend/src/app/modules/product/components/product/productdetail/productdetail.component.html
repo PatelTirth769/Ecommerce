@@ -41,7 +41,23 @@
   <article class="rounded-2xl border border-gray-200 bg-white p-4 md:p-6 lg:p-7 shadow-sm" *ngIf="isErpDetail">
     <div class="grid grid-cols-1 lg:grid-cols-[minmax(300px,420px)_1fr] xl:grid-cols-[minmax(300px,420px)_1fr_320px] gap-6 lg:gap-8 items-start">
       <div class="rounded-xl border border-gray-200 bg-white p-3 md:p-4">
-        <img class="mx-auto h-full max-h-[360px] w-full object-contain" [src]="imageSrc" [alt]="title">
+        <!-- Fixed-size stage so switching images never resizes this box -->
+        <div class="h-[220px] sm:h-[280px] md:h-[320px] lg:h-[360px] flex items-center justify-center">
+          <img class="max-w-full max-h-full object-contain" [src]="imageSrc" [alt]="title">
+        </div>
+
+        <!-- Thumbnail Gallery: every image uploaded in ERPNext's Attachments panel -->
+        <div class="flex flex-wrap gap-2 mt-3 justify-center" *ngIf="images.length > 1">
+          <button
+            type="button"
+            *ngFor="let image of images; index as i"
+            (click)="onImage(image, i)"
+            [ngClass]="selectedImage === i ? 'border-gray-900 ring-1 ring-gray-900' : 'border-gray-200 hover:border-gray-400'"
+            class="w-12 h-12 sm:w-14 sm:h-14 rounded-lg border-2 overflow-hidden shrink-0 transition-colors bg-white flex items-center justify-center"
+          >
+            <img class="max-w-full max-h-full object-contain" [src]="image" [alt]="title + ' thumbnail ' + (i+1)">
+          </button>
+        </div>
       </div>
 
       <!-- MIDDLE COLUMN: Title, Pricing, Offers, Wholesale Table -->
@@ -55,8 +71,11 @@
               <span>Item Code: {{product.type}}</span>
             </p>
           </div>
-          <button class="shrink-0 h-10 w-10 rounded-full border border-gray-200 text-red-400 hover:bg-red-50 transition-colors flex items-center justify-center" title="Wishlist">
-            <i class="fa-regular fa-heart"></i>
+          <button
+            (click)="toggleWishlist(product)"
+            class="shrink-0 h-10 w-10 rounded-full border border-gray-200 text-red-400 hover:bg-red-50 transition-colors flex items-center justify-center"
+            [title]="isProductInWishlist(product) ? 'Remove from Wishlist' : 'Add to Wishlist'">
+            <i [ngClass]="isProductInWishlist(product) ? 'fa-solid fa-heart' : 'fa-regular fa-heart'"></i>
           </button>
         </div>
 
@@ -177,7 +196,7 @@
       </div>
 
       <!-- RIGHT COLUMN: Dynamic Cart Box -->
-      <div class="py-1 lg:py-2 flex justify-end w-full">
+      <div class="py-1 lg:py-2 flex justify-center lg:justify-end w-full">
         <div class="rounded-xl border border-gray-300 bg-white p-4 w-full max-w-[280px]" *ngIf="product.stock == 'In stock'">
           
           <!-- Quantity Row -->
@@ -384,11 +403,12 @@
             <i class="fa-solid fa-trash mr-2"></i>REMOVE
           </button>
 
-          <button 
+          <button
+            (click)="toggleWishlist(product)"
             class="py-3 px-6 border-2 border-gray-300 text-gray-800 font-semibold rounded hover:border-gray-800 transition-colors"
-            title="Add to Wishlist"
+            [title]="isProductInWishlist(product) ? 'Remove from Wishlist' : 'Add to Wishlist'"
           >
-            <i class="fa-regular fa-heart mr-2"></i>WISHLIST
+            <i [ngClass]="isProductInWishlist(product) ? 'fa-solid fa-heart' : 'fa-regular fa-heart'" class="mr-2"></i>WISHLIST
           </button>
         </div>
 
@@ -418,28 +438,28 @@
   <article class="mt-4 rounded-2xl border border-gray-200 bg-white shadow-sm" *ngIf="isErpDetail">
     
     <!-- TABS NAVIGATION -->
-    <div class="border-b border-gray-200 px-5 md:px-6 lg:px-7 pt-2">
-      <nav class="-mb-px flex space-x-8 overflow-x-auto" aria-label="Tabs">
+    <div class="border-b border-gray-200 px-3 md:px-6 lg:px-7 pt-2">
+      <nav class="-mb-px flex space-x-4 md:space-x-8 overflow-x-auto" aria-label="Tabs">
         <button (click)="activeTab = 'details'"
           [class]="activeTab === 'details' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
-          class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg transition-colors">
+          class="whitespace-nowrap py-3 md:py-4 px-1 border-b-2 font-medium text-sm md:text-lg transition-colors">
           Product Details
         </button>
         <button (click)="activeTab = 'reviews'"
           [class]="activeTab === 'reviews' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
-          class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg transition-colors">
+          class="whitespace-nowrap py-3 md:py-4 px-1 border-b-2 font-medium text-sm md:text-lg transition-colors">
           Customer Reviews
         </button>
         <button (click)="activeTab = 'description'"
           [class]="activeTab === 'description' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
-          class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg transition-colors">
+          class="whitespace-nowrap py-3 md:py-4 px-1 border-b-2 font-medium text-sm md:text-lg transition-colors">
           Product Description
         </button>
       </nav>
     </div>
 
     <!-- TABS CONTENT -->
-    <div class="p-5 md:p-6 lg:p-7">
+    <div class="p-4 md:p-6 lg:p-7">
       
       <!-- TAB 1: PRODUCT DETAILS -->
       <div *ngIf="activeTab === 'details'" class="animate-fade-in">
@@ -457,7 +477,7 @@
       <div *ngIf="activeTab === 'reviews'" class="animate-fade-in">
         <div class="flex items-center justify-between gap-3 mb-6 flex-wrap">
           <h3 class="text-2xl font-semibold text-gray-800">Ratings & Reviews</h3>
-          <button class="rounded-xl bg-gray-100 px-4 py-2 text-base font-medium text-gray-700 hover:bg-gray-200 transition-colors">Write a Review</button>
+          <button (click)="openReviewModal()" class="rounded-xl bg-gray-100 px-4 py-2 text-base font-medium text-gray-700 hover:bg-gray-200 transition-colors">Write a Review</button>
         </div>
 
         <div class="rounded-xl border border-gray-100 bg-gray-50/60 p-4 md:p-5">
@@ -482,7 +502,7 @@
           </div>
         </div>
 
-        <div *ngIf="erpReviews.length > 0; else noErpReviews" class="space-y-6">
+        <div *ngIf="erpReviews.length > 0; else noErpReviews" class="space-y-6 max-h-[600px] overflow-y-auto pr-4 reviews-container">
           <div class="border-t border-gray-200 pt-6" *ngFor="let review of erpReviews">
             <div class="flex items-center gap-2 mb-2" *ngIf="review.title || review.rating > 0">
               <p class="text-xl font-semibold text-gray-800" *ngIf="review.title">{{review.title}}</p>
@@ -532,6 +552,58 @@
   </span>
   <h4 class="text-md px-4 py-2">NO RELATED PRODUCTS</h4>
 </article>
+
+<!-- Write a Review Modal -->
+<div class="fixed inset-0 bg-black/60 z-[200] flex items-start md:items-center justify-center p-4 overflow-y-auto" *ngIf="showReviewModal" (click)="closeReviewModal()">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-lg mt-10 md:mt-0" (click)="$event.stopPropagation()">
+    <div class="flex items-center justify-between px-6 py-5 border-b border-gray-200">
+      <h3 class="text-xl font-semibold text-gray-900">Write a Review</h3>
+      <button type="button" class="text-gray-400 hover:text-gray-700 transition-colors" (click)="closeReviewModal()">
+        <i class="fa-solid fa-xmark text-xl"></i>
+      </button>
+    </div>
+
+    <div class="px-6 py-5 space-y-5">
+      <div>
+        <label class="block text-sm text-gray-700 mb-2">Headline <span class="text-red-500">*</span></label>
+        <input type="text" [(ngModel)]="reviewTitle" name="reviewTitle" class="w-full bg-gray-100 border-0 rounded-md px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-300" />
+      </div>
+
+      <div>
+        <label class="block text-sm text-gray-700 mb-2">Overall Rating <span class="text-red-500">*</span></label>
+        <div class="flex items-center gap-1 text-2xl">
+          <button type="button" *ngFor="let star of [1,2,3,4,5]"
+            (click)="setReviewRating(star)"
+            (mouseenter)="reviewHoverRating = star"
+            (mouseleave)="reviewHoverRating = 0"
+            class="focus:outline-none transition-transform hover:scale-110">
+            <i class="fa-solid fa-star" [ngClass]="star <= (reviewHoverRating || reviewRating) ? 'text-amber-400' : 'text-gray-300'"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="border-t border-gray-100 pt-5">
+        <label class="block text-sm text-gray-700 mb-2">Your Review</label>
+        <textarea [(ngModel)]="reviewComment" name="reviewComment" rows="4" class="w-full bg-gray-100 border-0 rounded-md px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-300 resize-y"></textarea>
+      </div>
+
+      <p class="text-sm font-medium text-red-600" *ngIf="reviewSubmitError">{{ reviewSubmitError }}</p>
+    </div>
+
+    <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
+      <button type="button" (click)="closeReviewModal()" class="px-4 py-2 text-sm font-semibold text-gray-600 hover:text-gray-900 transition-colors">Cancel</button>
+      <button type="button" [disabled]="isSubmittingReview" (click)="submitReview()" class="bg-gray-900 text-white px-5 py-2.5 rounded-md text-sm font-bold hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+        <span *ngIf="isSubmittingReview"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Submitting...</span>
+        <span *ngIf="!isSubmittingReview">Submit</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Review submitted toast -->
+<div class="fixed bottom-6 right-6 bg-green-600 text-white px-5 py-3 rounded-lg shadow-lg z-[200] flex items-center gap-2" *ngIf="reviewSubmitSuccess">
+  <i class="fa-solid fa-circle-check"></i> Review submitted successfully!
+</div>
 
 </section>
 

@@ -29,26 +29,33 @@
 <app-skeleton *ngIf="!error && isLoading"></app-skeleton>
 
 <section class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 mb-10 bg-white mx-auto max-w-[1300px]" *ngIf="!isLoading">
-    <div class="flex justify-end pr-2 block md:hidden">
-      <button class="bg-gray-800 text-gray-200 px-2" (click)="onFilter(true)">
-      <i class="fa-solid fa-filter"></i>
-      Filter
-    </button>
+    <div class="flex justify-end px-3 py-2 block md:hidden">
+      <button class="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm" (click)="onFilter(true)">
+        <i class="fa-solid fa-filter"></i>
+        Filter
+      </button>
     </div>
 
-    <aside 
+    <!-- Mobile backdrop, dims the page and closes the drawer on tap -->
+    <div
+    class="fixed inset-0 bg-black/50 z-[97] md:hidden"
+    *ngIf="isFilter"
+    (click)="onFilter(false)"
+    ></div>
+
+    <aside
     class="col-span-1 md:col-span-1 lg:col-span-1 mb-4
-    fixed top-0 right-0 w-[350px] md:w-auto bg-[#f8f8f8] z-[98] h-full drop-shadow-lg md:drop-shadow-none md:sticky md:top-24 md:self-start md:h-auto md:bg-transparent hidden md:block"
-    [ngStyle]="{'display':isFilter?'block':''}"
+    fixed top-0 right-0 w-[75%] max-w-[280px] md:w-auto bg-[#f8f8f8] z-[98] h-full drop-shadow-lg md:drop-shadow-none md:sticky md:top-24 md:self-start md:h-auto md:bg-transparent md:block transition-transform duration-300 ease-in-out md:!translate-x-0"
+    [ngClass]="isFilter ? 'translate-x-0' : 'translate-x-full'"
     >
-      <app-filter 
-      [products]="cloneOfProducts" 
+      <app-filter
+      [products]="cloneOfProducts"
       [category]="category"
       [ratingList]="ratingList"
       [selectedFilter]="selectedFilter"
       (onFilter)="onFilter(false)"
       >
-      </app-filter>   
+      </app-filter>
     </aside>
 
     <article class="col-span-1 md:col-span-2 lg:col-span-3">

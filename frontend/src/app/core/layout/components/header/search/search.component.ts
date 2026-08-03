@@ -11,17 +11,23 @@ export class SearchComponent {
   @Input() search!:ElementRef;
   constructor(private router:Router){}
   onKey(event:KeyboardEvent,element:HTMLInputElement){
-    if(event.keyCode===13&&element.value!==''){
-      this.router.navigate(['/product-master'],{ queryParams: { q: element.value.toLowerCase().trim() }});
-    } else if (event.keyCode===13 && element.value === '') {
-      this.router.navigate(['/product-master']);
+    if(event.keyCode===13){
+      this.navigateWithSearch(element.value.toLowerCase().trim());
     }
   }
+  
   onSearch(element:HTMLInputElement){
-    if (element.value) {
-      this.router.navigate(['/product-master'], { queryParams: { q: element.value.toLowerCase().trim() }});
+    this.navigateWithSearch(element.value.toLowerCase().trim());
+  }
+
+  private navigateWithSearch(query: string) {
+    const currentUrl = this.router.url.split('?')[0];
+    const targetRoute = (currentUrl === '/' || currentUrl === '/home') ? '/' : '/product-master';
+    
+    if (query) {
+      this.router.navigate([targetRoute], { queryParams: { q: query } });
     } else {
-      this.router.navigate(['/product-master']);
+      this.router.navigate([targetRoute]);
     }
   }
 }

@@ -3,7 +3,9 @@ import { Router } from '@angular/router';
 import { Observable, BehaviorSubject, of } from 'rxjs';
 import { map, catchError, tap } from 'rxjs/operators';
 import { CartService } from './cart.service';
+import { WishlistService } from './wishlist.service';
 import { HttpClient } from '@angular/common/http';
+import { AngularFirestore } from '@angular/fire/compat/firestore';
 import { environment } from 'src/environments/environment';
 
 @Injectable({
@@ -19,7 +21,9 @@ export class FirebaseAuthService {
   constructor(
     private router: Router,
     private cartService: CartService,
-    private http: HttpClient
+    private wishlistService: WishlistService,
+    private http: HttpClient,
+    private firestore: AngularFirestore
   ) {
     this.checkLoginStatus();
   }
@@ -84,6 +88,7 @@ export class FirebaseAuthService {
       this.authChecked.next(true);
       // Always try to load the cart once we have a user context
       this.cartService.loadCart().subscribe();
+      this.wishlistService.refresh();
     }
   }
 
@@ -136,6 +141,7 @@ export class FirebaseAuthService {
     this.userSubject.next(null);
     this.authChecked.next(true);
     this.cartService.clearCart();
+    this.wishlistService.clear();
     this.router.navigate(['/login']);
   }
 
@@ -199,6 +205,24 @@ export class FirebaseAuthService {
         // We don't throw here to avoid failing registration if user is created but customer fails (e.g. exists)
       }
 
+      // 3. Store in Firebase Firestore for uniformity with sellers
+      try {
+        const firestoreData = {
+          email: buyerData.email,
+          first_name: buyerData.first_name || '',
+          last_name: buyerData.last_name || '',
+          mobile: buyerData.mobile || '',
+          username: buyerData.username || '',
+          createdAt: new Date().toISOString(),
+          status: 'active',
+          role: 'Customer',
+          enabled: true
+        };
+        await this.firestore.doc(`ecommerce_system/metadata/customers/${buyerData.email}`).set(firestoreData, { merge: true });
+      } catch (fbError) {
+        console.error('Firebase Customer Creation Error:', fbError);
+      }
+
       return userRes;
     } catch (error) {
       console.error('ERPNext Registration Error:', error);
@@ -254,7 +278,7 @@ export class FirebaseAuthService {
     return this.http.put(`${this.baseUrl}api/resource/Address/${encodeURIComponent(addressName)}`, addressData, { headers, withCredentials: true });
   }
 
-  // Check if a User with this email exists in ERPNext
+  // Check if a User with this email exists in ERPNext and has Customer role
   async checkUserExists(email: string): Promise<boolean> {
     const headers = { 'Authorization': `token ${this.API_KEY}:${this.API_SECRET}` };
     try {
@@ -262,7 +286,17 @@ export class FirebaseAuthService {
         `${this.baseUrl}api/resource/User/${encodeURIComponent(email)}`,
         { headers, withCredentials: true }
       ).toPromise();
-      return !!(res?.data?.email);
+      
+      if (!res?.data?.email) return false;
+      
+      const roles = res.data.roles || [];
+      const isCustomer = roles.some((r: any) => r.role === 'Customer');
+      
+      if (!isCustomer) {
+        throw new Error('This account is not authorized to reset its password from the customer portal.');
+      }
+      
+      return true;
     } catch (err: any) {
       if (err?.status === 404) return false;
       throw err;
