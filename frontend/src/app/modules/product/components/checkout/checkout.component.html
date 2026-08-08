@@ -29,7 +29,7 @@
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
     <article class="col-span-1 lg:col-span-2 md:pr-10">
         <h2 class="text-2xl font-semibold leading-7 text-gray-600">Billing Details</h2>
-        <form [formGroup]="shippingForm" (ngSubmit)="initiatePayment()">
+        <form [formGroup]="shippingForm" (ngSubmit)="placeOrder()">
             <div class="space-y-12">
               <div class="border-b border-gray-900/10 pb-12">               
                 <div class="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
@@ -213,17 +213,44 @@
                 </div>
 
             </div>
-                
+
+              <div class="mt-8">
+                <h4 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">Payment Method</h4>
+                <div class="space-y-2">
+                  <label
+                    class="flex items-center gap-3 border rounded-md p-3 cursor-pointer transition-colors"
+                    [ngClass]="paymentMethod === 'online' ? 'border-[#3c64a9] bg-[#3c64a9]/5' : 'border-gray-200 hover:border-gray-300'"
+                  >
+                    <input type="radio" name="paymentMethod" [value]="'online'" [(ngModel)]="paymentMethod" [ngModelOptions]="{standalone: true}" class="accent-[#3c64a9] w-4 h-4">
+                    <span class="text-sm font-medium text-gray-800">
+                      Online Payment
+                      <span class="block text-xs font-normal text-gray-400">Card / UPI / Netbanking (Razorpay)</span>
+                    </span>
+                  </label>
+                  <label
+                    class="flex items-center gap-3 border rounded-md p-3 cursor-pointer transition-colors"
+                    [ngClass]="paymentMethod === 'cod' ? 'border-[#3c64a9] bg-[#3c64a9]/5' : 'border-gray-200 hover:border-gray-300'"
+                  >
+                    <input type="radio" name="paymentMethod" [value]="'cod'" [(ngModel)]="paymentMethod" [ngModelOptions]="{standalone: true}" class="accent-[#3c64a9] w-4 h-4">
+                    <span class="text-sm font-medium text-gray-800">
+                      Cash on Delivery (COD)
+                      <span class="block text-xs font-normal text-gray-400">Pay in cash when your order arrives</span>
+                    </span>
+                  </label>
+                </div>
+              </div>
+
             </div>
-            <div class="flex justify-center mt-12 lg:mt-16">
-                <button 
-                type="button" 
-                (click)="initiatePayment()"
-                [disabled]="shippingForm.invalid"
-                [ngClass]="shippingForm.invalid ? 'w-full md:w-[80%] px-4 md:px-16 py-4 text-center font-semibold text-white bg-[#3c64a9] opacity-50 cursor-not-allowed' : 'w-full md:w-[80%] px-4 md:px-16 py-4 text-center font-semibold text-white bg-[#3c64a9] hover:bg-[#2d4d85] transition-all'"
+            <div class="flex justify-center mt-8 lg:mt-10">
+                <button
+                type="button"
+                (click)="placeOrder()"
+                [disabled]="shippingForm.invalid || isPlacingOrder"
+                [ngClass]="(shippingForm.invalid || isPlacingOrder) ? 'w-full md:w-[80%] px-4 md:px-16 py-4 text-center font-semibold text-white bg-[#3c64a9] opacity-50 cursor-not-allowed' : 'w-full md:w-[80%] px-4 md:px-16 py-4 text-center font-semibold text-white bg-[#3c64a9] hover:bg-[#2d4d85] transition-all'"
                 class="w-full md:w-[80%] px-4 md:px-16 py-4 text-center font-semibold text-white bg-[#3c64a9] rounded-md">
-                    <i class="fa-solid fa-lock mr-2"></i>
-                    Place order
+                    <i class="fa-solid fa-spinner fa-spin mr-2" *ngIf="isPlacingOrder"></i>
+                    <i class="fa-solid fa-lock mr-2" *ngIf="!isPlacingOrder"></i>
+                    {{ isPlacingOrder ? 'Placing order...' : (paymentMethod === 'cod' ? 'Place Order (COD)' : 'Place order') }}
                 </button>
             </div>
         </div>

@@ -312,6 +312,9 @@
                     <span class="bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded-full border border-green-200 uppercase tracking-wide">
                       {{ order.status }}
                     </span>
+                    <span *ngIf="order.payment_method === 'cod'" class="ml-2 bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1 rounded-full border border-amber-200 uppercase tracking-wide">
+                      COD
+                    </span>
                   </div>
                 </div>
 
@@ -600,6 +603,16 @@
                 <div>
                   <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Postal Code</label>
                   <input type="text" formControlName="pincode" class="w-full bg-[#f9fafb] border border-gray-200 rounded-md px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400">
+                </div>
+                
+                <!-- Contact Info -->
+                <div>
+                  <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Phone Number</label>
+                  <input type="tel" formControlName="phone" class="w-full bg-[#f9fafb] border border-gray-200 rounded-md px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400">
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Email Address</label>
+                  <input type="email" formControlName="email_id" class="w-full bg-[#f9fafb] border border-gray-200 rounded-md px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400">
                 </div>
 
               </div>

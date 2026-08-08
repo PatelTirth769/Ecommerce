@@ -42,6 +42,7 @@ async function getUserOrders(email) {
       return {
         razorpay_order_id: data.razorpay_order_id,
         status: data.status,
+        payment_method: data.payment_method || 'online',
         amount: data.amount,
         currency: data.currency,
         items: data.items || [],

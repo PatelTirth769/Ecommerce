@@ -42,6 +42,8 @@ export interface Product {
     stock_uom?: string;
     erpDiscountedPrice?: number;
     erpDiscountPct?: number;
+    stockQty?: number;
+    stockByWarehouse?: { warehouse: string; qty: number }[];
     rating: {
       rate: number;
       count: number;

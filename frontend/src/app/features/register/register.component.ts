@@ -25,11 +25,10 @@ export class RegisterComponent implements OnInit {
 
   ngOnInit(): void {
     this.registerForm = this.fb.group({
-      email: ['', [Validators.required, Validators.email]],
       mobile: ['', [Validators.required, Validators.pattern('^[0-9]{10}$')]],
-      username: [''],
       first_name: ['', Validators.required],
       last_name: ['', Validators.required],
+      fssai: ['', [Validators.pattern('^[0-9]{14}$')]],
       send_welcome_email: [true],
       password: ['', [Validators.required, Validators.minLength(6)]],
       confirmPassword: ['', Validators.required]
@@ -41,7 +40,7 @@ export class RegisterComponent implements OnInit {
       ? null : { mismatch: true };
   }
 
-  onMobileKeyPress(event: KeyboardEvent) {
+  onNumericKeyPress(event: KeyboardEvent) {
     const charCode = event.which ? event.which : event.keyCode;
     // Allow only numeric digits
     if (charCode > 31 && (charCode < 48 || charCode > 57)) {
@@ -83,8 +82,18 @@ export class RegisterComponent implements OnInit {
     this.isLoading = true;
     this.errorMessage = '';
 
+    const formValue = this.registerForm.value;
+    const firstNameClean = formValue.first_name ? formValue.first_name.trim().toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 6) : 'user';
+    const randomDigits = Math.floor(100 + Math.random() * 900);
+    const generatedEmail = `${firstNameClean}${randomDigits}@sale24x7.com`;
+
+    const payload = {
+      ...formValue,
+      email: generatedEmail
+    };
+
     try {
-      await this.authService.registerBuyer(this.registerForm.value);
+      await this.authService.registerBuyer(payload);
       this.toastService.showSuccess('Registration successful! Please login.');
       this.router.navigate(['/login']);
     } catch (error: any) {

@@ -16,6 +16,14 @@ export interface CompletePaymentRequest {
   razorpay_signature: string;
 }
 
+export interface PlaceCodOrderRequest {
+  amount: number;
+  buyer_email?: string;
+  quotation_name?: string | null;
+  shipping_form?: any;
+  items?: any[];
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -52,5 +60,11 @@ export class PaymentService {
   // Fetch orders list for a specific buyer email
   getUserOrders(email: string): Observable<any[]> {
     return this.http.get<any[]>(`${this.apiBase}/api/orders/${email}`);
+  }
+
+  // Cash on Delivery: no payment gateway step, creates the Sales Order
+  // synchronously server-side in one call.
+  placeCodOrder(data: PlaceCodOrderRequest): Observable<any> {
+    return this.http.post<any>(`${this.apiBase}/api/orders/cod`, data);
   }
 }

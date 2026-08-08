@@ -22,6 +22,8 @@ export class CheckoutComponent implements OnInit {
   appliedTaxes: TaxDetail[] = [];
   grandTotal: number = 0;
   shippingForm!: FormGroup;
+  paymentMethod: 'online' | 'cod' = 'online';
+  isPlacingOrder = false;
 
   stateOptions: { name: string }[] = INDIA_STATE_NAMES.map(name => ({ name }));
   cityOptions: { name: string }[] = getCitiesForState(null).map(name => ({ name }));
@@ -138,20 +140,8 @@ export class CheckoutComponent implements OnInit {
   get country() { return this.shippingForm.get('country'); }
   get postalCode() { return this.shippingForm.get('postalCode'); }
 
-  initiatePayment(): void {
-    if (this.shippingForm.invalid) {
-      this.toastService.showError('Please fill in all required billing details');
-      return;
-    }
-
-    if (this.grandTotal <= 0) {
-      this.toastService.showError('Your cart is empty');
-      return;
-    }
-
-    this.toastService.showInfo('Initializing secure payment gateway...');
-
-    const orderMeta = {
+  private buildOrderMeta() {
+    return {
       buyer_email: this.shippingForm.value.email,
       quotation_name: this.cartService.getCurrentQuotationName(),
       shipping_form: { ...this.shippingForm.value },
@@ -162,6 +152,53 @@ export class CheckoutComponent implements OnInit {
         price: item.price
       }))
     };
+  }
+
+  placeOrder(): void {
+    if (this.shippingForm.invalid) {
+      this.toastService.showError('Please fill in all required billing details');
+      return;
+    }
+
+    if (this.grandTotal <= 0) {
+      this.toastService.showError('Your cart is empty');
+      return;
+    }
+
+    if (this.paymentMethod === 'cod') {
+      this.placeCodOrder();
+    } else {
+      this.initiatePayment();
+    }
+  }
+
+  placeCodOrder(): void {
+    this.isPlacingOrder = true;
+    this.toastService.showInfo('Placing your order...');
+
+    const payload = { amount: this.grandTotal, ...this.buildOrderMeta() };
+    console.log('%c[COD] POST /api/orders/cod', 'color:#3c64a9;font-weight:bold', payload);
+
+    this.paymentService.placeCodOrder(payload).subscribe({
+      next: (res) => {
+        this.isPlacingOrder = false;
+        console.log('%c[COD] order placed', 'color:#22863a;font-weight:bold', res);
+        this.toastService.showSuccess('Order placed! Pay cash on delivery.');
+        this.cartService.clearCart();
+        this.router.navigate(['/order-confirmation', res.cod_order_id]);
+      },
+      error: (err) => {
+        this.isPlacingOrder = false;
+        console.error('Failed to place COD order:', err);
+        this.toastService.showError('Could not place your order. Please try again.');
+      }
+    });
+  }
+
+  initiatePayment(): void {
+    this.toastService.showInfo('Initializing secure payment gateway...');
+
+    const orderMeta = this.buildOrderMeta();
 
     console.log('%c[1/6] Checkout started - POST /api/payment/create-order', 'color:#3c64a9;font-weight:bold', { grandTotal: this.grandTotal, orderMeta });
 

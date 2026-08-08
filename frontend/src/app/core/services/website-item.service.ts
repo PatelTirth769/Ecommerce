@@ -88,6 +88,11 @@ export interface PricingRuleSlab {
   uom: string;
 }
 
+export interface StockRow {
+  warehouse: string;
+  qty: number;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -96,6 +101,7 @@ export class WebsiteItemService {
   private readonly itemEndpoint = this.buildApiUrl('api/resource/Item');
   private readonly itemPriceEndpoint = this.buildApiUrl('api/resource/Item%20Price');
   private readonly itemReviewEndpoint = this.buildApiUrl('api/resource/Item Review');
+  private readonly binEndpoint = this.buildApiUrl('api/resource/Bin');
 
   private readonly websiteItemFields = JSON.stringify([
     'name',
@@ -433,6 +439,62 @@ export class WebsiteItemService {
       }),
       catchError(() => of([] as PricingRuleSlab[]))
     );
+  }
+
+  // Live warehouse-wise stock for one item, from ERPNext's Bin doctype — the
+  // same data that backs the "Balance Qty" column of the Stock Balance report.
+  // Rows with zero/negative qty are dropped since a warehouse holding none of
+  // an item isn't useful to show the customer.
+  getItemStock(itemCode: string): Observable<StockRow[]> {
+    if (!itemCode) return of([]);
+
+    const params = new HttpParams()
+      .set('fields', JSON.stringify(['warehouse', 'actual_qty']))
+      .set('filters', JSON.stringify([
+        ['Bin', 'item_code', '=', itemCode]
+      ]))
+      .set('limit_page_length', '0');
+
+    return this.http
+      .get<{ data: Array<{ warehouse: string; actual_qty: number }> }>(this.binEndpoint, {
+        params,
+        headers: this.authHeaders
+      })
+      .pipe(
+        map((response) => (response?.data || [])
+          .map((row) => ({ warehouse: row.warehouse, qty: Number(row.actual_qty || 0) }))
+          .filter((row) => row.qty > 0)
+        ),
+        catchError(() => of([] as StockRow[]))
+      );
+  }
+
+  // Same as getItemStock but for every item at once (one Bin request instead
+  // of N), grouped client-side by item_code — used by the product grid.
+  getAllItemStock(): Observable<Map<string, StockRow[]>> {
+    const params = new HttpParams()
+      .set('fields', JSON.stringify(['item_code', 'warehouse', 'actual_qty']))
+      .set('limit_page_length', '0');
+
+    return this.http
+      .get<{ data: Array<{ item_code: string; warehouse: string; actual_qty: number }> }>(this.binEndpoint, {
+        params,
+        headers: this.authHeaders
+      })
+      .pipe(
+        map((response) => {
+          const stockMap = new Map<string, StockRow[]>();
+          (response?.data || []).forEach((row) => {
+            const qty = Number(row.actual_qty || 0);
+            if (!row.item_code || qty <= 0) return;
+            const list = stockMap.get(row.item_code) || [];
+            list.push({ warehouse: row.warehouse, qty });
+            stockMap.set(row.item_code, list);
+          });
+          return stockMap;
+        }),
+        catchError(() => of(new Map<string, StockRow[]>()))
+      );
   }
 
   getWebsiteItemReviews(websiteItem: WebsiteItem): Observable<Record<string, unknown>[]> {

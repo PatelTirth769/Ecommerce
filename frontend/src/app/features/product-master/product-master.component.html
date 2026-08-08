@@ -89,6 +89,20 @@
               </span>
             </p>
 
+            <!-- Warehouse Stock -->
+            <p class="text-[10px] mb-1" *ngIf="item.stockQty !== undefined">
+              <i class="fa-solid fa-warehouse mr-1 text-gray-400"></i>
+              <span [ngClass]="item.stockQty > 0 ? 'text-green-700 font-semibold' : 'text-red-600 font-semibold'">
+                Stock: {{ item.stockQty }} {{ getUom(item) }}
+              </span>
+              <span class="text-gray-400" *ngIf="item.stockByWarehouse && item.stockByWarehouse.length === 1">
+                &middot; {{ item.stockByWarehouse[0].warehouse }}
+              </span>
+              <span class="text-gray-400" *ngIf="item.stockByWarehouse && item.stockByWarehouse.length > 1">
+                &middot; {{ item.stockByWarehouse.length }} warehouses
+              </span>
+            </p>
+
             <!-- Description if available -->
             <p class="text-xs text-gray-400 line-clamp-2 mb-3" *ngIf="item.description" [innerHTML]="item.description">
             </p>
