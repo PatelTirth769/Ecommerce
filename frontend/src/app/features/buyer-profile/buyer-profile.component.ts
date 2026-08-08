@@ -102,6 +102,8 @@ export class BuyerProfileComponent implements OnInit {
       state: [''],
       country: ['India', Validators.required],
       pincode: [''],
+      phone: [''],
+      email_id: [''],
       is_primary_address: [0],
       is_shipping_address: [0],
       disabled: [0]
@@ -313,6 +315,8 @@ export class BuyerProfileComponent implements OnInit {
       state: addr.state,
       country: addr.country,
       pincode: addr.pincode,
+      phone: addr.phone,
+      email_id: addr.email_id,
       is_primary_address: addr.is_primary_address,
       is_shipping_address: addr.is_shipping_address,
       disabled: addr.disabled

@@ -26,6 +26,11 @@ function docRef(razorpayOrderId) {
   return paymentsCollection.doc(razorpayOrderId);
 }
 
+// Frappe's Datetime fieldtype expects "YYYY-MM-DD HH:MM:SS", not ISO 8601.
+function toFrappeDatetime(date) {
+  return date.toISOString().slice(0, 19).replace('T', ' ');
+}
+
 async function appendEvent(razorpayOrderId, event) {
   await docRef(razorpayOrderId).collection('events').add({
     ...event,
@@ -37,6 +42,7 @@ async function initPaymentRecord({ razorpayOrderId, amount, currency, buyerEmail
   await docRef(razorpayOrderId).set(
     {
       razorpay_order_id: razorpayOrderId,
+      payment_method: 'online',
       amount,
       currency,
       buyer_email: buyerEmail || null,
@@ -158,6 +164,14 @@ async function runErpnextSync(razorpayOrderId) {
 
   const payment = claim.data;
   const erpnext = { ...(payment.erpnext || {}) };
+  const onlineFields = {
+    payment_method: 'Online Payment',
+    payment_status: 'Paid',
+    payment_gateway: 'Razorpay',
+    payment_transaction_id: payment.razorpay_payment_id || '',
+    cod_amount: 0,
+    payment_date: toFrappeDatetime(new Date())
+  };
 
   logger.info(`[ERPNext sync] START for ${razorpayOrderId}`, { quotation_name: payment.quotation_name, buyer_email: payment.buyer_email });
 
@@ -192,7 +206,7 @@ async function runErpnextSync(razorpayOrderId) {
     // Step 2: Sales Order
     if (!erpnext.sales_order?.name) {
       logger.info(`[ERPNext sync] Step 2/6: creating Sales Order from Quotation ${payment.quotation_name} (API: quotation.make_sales_order)`);
-      const draft = await salesOrderService.createSalesOrderFromQuotation(payment.quotation_name);
+      const draft = await salesOrderService.createSalesOrderFromQuotation(payment.quotation_name, onlineFields);
       logger.info(`[ERPNext sync] Step 2/6: submitting Sales Order ${draft.name}`);
       const submitted = await salesOrderService.submitSalesOrder(draft);
       erpnext.sales_order = { name: submitted.name, submitted_at: new Date().toISOString() };
@@ -205,7 +219,7 @@ async function runErpnextSync(razorpayOrderId) {
     // Step 3: Sales Invoice
     if (!erpnext.sales_invoice?.name) {
       logger.info(`[ERPNext sync] Step 3/6: creating Sales Invoice from Sales Order ${erpnext.sales_order.name} (API: sales_order.make_sales_invoice)`);
-      const draft = await salesInvoiceService.createSalesInvoiceFromSalesOrder(erpnext.sales_order.name);
+      const draft = await salesInvoiceService.createSalesInvoiceFromSalesOrder(erpnext.sales_order.name, onlineFields);
       logger.info(`[ERPNext sync] Step 3/6: submitting Sales Invoice ${draft.name}`);
       const submitted = await salesInvoiceService.submitSalesInvoice(draft);
       erpnext.sales_invoice = { name: submitted.name, submitted_at: new Date().toISOString(), grand_total: submitted.grand_total };
@@ -331,8 +345,163 @@ async function getPaymentStatus(razorpayOrderId) {
   return snap.data();
 }
 
+const COD_FIELDS = {
+  payment_method: 'Cash On Delivery (COD)',
+  payment_status: 'Pending',
+  payment_gateway: '',
+  payment_transaction_id: '',
+  payment_date: null
+};
+
+// Cash on Delivery: there is no payment gateway step to wait on, so this
+// creates the Firestore order record and runs the Quotation -> Sales Order ->
+// Sales Invoice sync inline, synchronously, in one call. It deliberately
+// skips the Payment Entry step the online flow does - no money has changed
+// hands yet, so the Sales Invoice is created and submitted UNPAID (its
+// outstanding_amount naturally equals cod_amount / grand_total since nothing
+// has been allocated against it). Payment gets recorded later (outside this
+// app, via a Payment Entry against this invoice) once cash is collected on
+// delivery. Reuses the same `payments` Firestore collection and status
+// vocabulary ('erpnext_synced' / 'erpnext_sync_failed') as the online flow so
+// the existing order-confirmation page and buyer "My Orders" list work for
+// COD orders without needing separate UI plumbing. Every step is individually
+// skip-guarded so a retry after a partial failure resumes instead of creating
+// duplicate documents - same idempotency pattern as runErpnextSync().
+async function createCodOrder({ codOrderId, amount, buyerEmail, quotationName, shippingForm, items }) {
+  const existingSnap = await docRef(codOrderId).get();
+  const erpnext = existingSnap.exists ? { ...(existingSnap.data().erpnext || {}) } : {};
+  let invoicePdf = existingSnap.exists ? existingSnap.data().invoice_pdf : undefined;
+
+  if (existingSnap.exists && existingSnap.data().status === 'erpnext_synced') {
+    logger.info(`[COD order] ${codOrderId} already synced, skipping`);
+    return { skipped: true, erpnext };
+  }
+
+  await docRef(codOrderId).set(
+    {
+      razorpay_order_id: codOrderId,
+      payment_method: 'cod',
+      amount,
+      currency: 'INR',
+      buyer_email: buyerEmail || null,
+      quotation_name: quotationName || null,
+      shipping_form: shippingForm || null,
+      items: items || [],
+      status: 'cod_placed',
+      retry_count: 0,
+      created_at: FieldValue.serverTimestamp(),
+      updated_at: FieldValue.serverTimestamp()
+    },
+    { merge: true }
+  );
+  await appendEvent(codOrderId, { step: 'create_order', status: 'success', actor: 'client' });
+
+  logger.info(`[COD order] START for ${codOrderId}`, { quotation_name: quotationName, buyer_email: buyerEmail });
+
+  try {
+    // Step 1: resolve customer on the Quotation
+    if (!erpnext.quotation?.resolved_at) {
+      logger.info(`[COD order] Step 1/5: resolving Customer on Quotation ${quotationName}`);
+      const { customerName } = await quotationService.ensureQuotationHasCustomer(quotationName, buyerEmail, shippingForm);
+      erpnext.quotation = { name: quotationName, party_name: customerName, resolved_at: new Date().toISOString() };
+      await recordStepSuccess(codOrderId, 'quotation', erpnext.quotation);
+    } else {
+      logger.info('[COD order] Step 1/5 already done, skipping');
+    }
+
+    // Step 1b: submit the Quotation
+    if (!erpnext.quotation?.submitted_at) {
+      logger.info(`[COD order] Step 1b/5: submitting Quotation ${quotationName}`);
+      await quotationService.submitQuotation(quotationName);
+      erpnext.quotation = { ...erpnext.quotation, submitted_at: new Date().toISOString() };
+      await recordStepSuccess(codOrderId, 'quotation', erpnext.quotation);
+    } else {
+      logger.info('[COD order] Step 1b/5 already done, skipping');
+    }
+
+    // Step 2: Sales Order
+    if (!erpnext.sales_order?.name) {
+      logger.info(`[COD order] Step 2/5: creating Sales Order from Quotation ${quotationName} with COD fields`);
+      const draft = await salesOrderService.createSalesOrderFromQuotation(quotationName, { ...COD_FIELDS, cod_amount: amount });
+      logger.info(`[COD order] Step 2/5: submitting Sales Order ${draft.name}`);
+      const submitted = await salesOrderService.submitSalesOrder(draft);
+      erpnext.sales_order = { name: submitted.name, submitted_at: new Date().toISOString(), status: submitted.status };
+      await recordStepSuccess(codOrderId, 'sales_order', erpnext.sales_order);
+      logger.info(`[COD order] Step 2/5 DONE: Sales Order ${submitted.name} created + submitted`);
+    } else {
+      logger.info('[COD order] Step 2/5 already done, skipping', { sales_order: erpnext.sales_order.name });
+    }
+
+    // Step 3: Sales Invoice - created and submitted UNPAID (no Payment Entry)
+    if (!erpnext.sales_invoice?.name) {
+      logger.info(`[COD order] Step 3/5: creating Sales Invoice from Sales Order ${erpnext.sales_order.name} with COD fields`);
+      const draft = await salesInvoiceService.createSalesInvoiceFromSalesOrder(erpnext.sales_order.name, { ...COD_FIELDS, cod_amount: amount });
+      logger.info(`[COD order] Step 3/5: submitting Sales Invoice ${draft.name}`);
+      const submitted = await salesInvoiceService.submitSalesInvoice(draft);
+      erpnext.sales_invoice = {
+        name: submitted.name,
+        submitted_at: new Date().toISOString(),
+        grand_total: submitted.grand_total,
+        outstanding_amount: submitted.outstanding_amount
+      };
+      await recordStepSuccess(codOrderId, 'sales_invoice', erpnext.sales_invoice);
+      logger.info(`[COD order] Step 3/5 DONE: Sales Invoice ${submitted.name} created + submitted (outstanding: ${submitted.outstanding_amount})`);
+    } else {
+      logger.info('[COD order] Step 3/5 already done, skipping', { sales_invoice: erpnext.sales_invoice.name });
+    }
+
+    // Step 4: fetch + store Sales Invoice PDF - same as the online flow, so
+    // COD orders get a downloadable invoice too (buyer profile + order
+    // confirmation page already just check invoice_pdf.storage_path).
+    if (!invoicePdf?.storage_path) {
+      logger.info(`[COD order] Step 4/5: downloading Sales Invoice PDF for ${erpnext.sales_invoice.name} and uploading to Firebase Storage`);
+      const pdfBuffer = await pdfService.downloadSalesInvoicePdf(erpnext.sales_invoice.name);
+      const storagePath = `invoices/${codOrderId}/${erpnext.sales_invoice.name}.pdf`;
+      await bucket.file(storagePath).save(pdfBuffer, { contentType: 'application/pdf' });
+      invoicePdf = { storage_path: storagePath, generated_at: new Date().toISOString() };
+      await docRef(codOrderId).set(
+        { invoice_pdf: { storage_path: storagePath, generated_at: FieldValue.serverTimestamp() }, updated_at: FieldValue.serverTimestamp() },
+        { merge: true }
+      );
+      await appendEvent(codOrderId, { step: 'invoice_pdf', status: 'success', actor: 'sync' });
+      logger.info(`[COD order] Step 4/5 DONE: invoice PDF stored at ${storagePath}`);
+    } else {
+      logger.info('[COD order] Step 4/5 already done, skipping');
+    }
+
+    // Step 5: refresh the Sales Order's real ERPNext status
+    logger.info(`[COD order] Step 5/5: refreshing Sales Order ${erpnext.sales_order.name} status`);
+    const refreshedOrder = await erpnextClient.getResource('Sales Order', erpnext.sales_order.name);
+    erpnext.sales_order = { ...erpnext.sales_order, status: refreshedOrder.status };
+    await recordStepSuccess(codOrderId, 'sales_order', erpnext.sales_order);
+
+    await docRef(codOrderId).set({ status: 'erpnext_synced', updated_at: FieldValue.serverTimestamp() }, { merge: true });
+    await appendEvent(codOrderId, { step: 'erpnext_sync', status: 'success', actor: 'sync' });
+    logger.info(`[COD order] COMPLETE for ${codOrderId}`, { sales_order: erpnext.sales_order.name, sales_invoice: erpnext.sales_invoice.name });
+
+    return { skipped: false, erpnext };
+  } catch (error) {
+    const failedStep = !erpnext.quotation?.resolved_at
+      ? 'quotation'
+      : !erpnext.quotation?.submitted_at
+        ? 'quotation_submit'
+        : !erpnext.sales_order?.name
+          ? 'sales_order'
+          : !erpnext.sales_invoice?.name
+            ? 'sales_invoice'
+            : !invoicePdf?.storage_path
+              ? 'invoice_pdf'
+              : 'sales_order_status_refresh';
+
+    await recordStepFailure(codOrderId, failedStep, error);
+    logger.error(`COD order failed for ${codOrderId} at step ${failedStep}`, { message: error.message });
+    throw error;
+  }
+}
+
 module.exports = {
   initPaymentRecord,
+  createCodOrder,
   markPaymentVerified,
   markPaymentVerificationFailed,
   markPaymentFailed,

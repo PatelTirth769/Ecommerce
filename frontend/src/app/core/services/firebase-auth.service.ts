@@ -168,6 +168,7 @@ export class FirebaseAuthService {
       last_name: buyerData.last_name,
       username: buyerData.username,
       mobile_no: buyerData.mobile,
+      fssai: buyerData.fssai || '',
       new_password: buyerData.password,
       language: buyerData.language,
       time_zone: buyerData.time_zone,
@@ -186,7 +187,8 @@ export class FirebaseAuthService {
       customer_group: 'All Customer Groups',
       territory: 'All Territories',
       email_id: buyerData.email,
-      mobile_no: buyerData.mobile
+      mobile_no: buyerData.mobile,
+      fssai: buyerData.fssai || ''
     };
 
     const headers = {
@@ -212,6 +214,7 @@ export class FirebaseAuthService {
           first_name: buyerData.first_name || '',
           last_name: buyerData.last_name || '',
           mobile: buyerData.mobile || '',
+          fssai: buyerData.fssai || '',
           username: buyerData.username || '',
           createdAt: new Date().toISOString(),
           status: 'active',

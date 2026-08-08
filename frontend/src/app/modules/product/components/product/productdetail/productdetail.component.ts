@@ -4,8 +4,8 @@ import { Location } from '@angular/common';
 import { ProductService } from '../../../services/product.service';
 import { Product } from '../../../model';
 import { CartService } from 'src/app/core/services/cart.service';
-import { Subscription, catchError, forkJoin, map, of, switchMap, take } from 'rxjs';
-import { ItemRecord, PricingRuleSlab, WebsiteItem, WebsiteItemService } from 'src/app/core/services/website-item.service';
+import { Subscription, catchError, forkJoin, map, of, shareReplay, switchMap, take } from 'rxjs';
+import { ItemRecord, PricingRuleSlab, StockRow, WebsiteItem, WebsiteItemService } from 'src/app/core/services/website-item.service';
 import { FirebaseAuthService } from 'src/app/core/services/firebase-auth.service';
 import { WishlistService, WishlistItem } from 'src/app/core/services/wishlist.service';
 
@@ -209,15 +209,16 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
         );
 
         if (!itemCode) {
-          return reviews$.pipe(map((reviews) => ({ websiteItem, item: null as ItemRecord | null, reviews, sellingPrice: 0, variants: [] })));
+          return reviews$.pipe(map((reviews) => ({ websiteItem, item: null as ItemRecord | null, reviews, sellingPrice: 0, variants: [], stock: [] as StockRow[] })));
         }
 
         return forkJoin({
           item: this.websiteItemService.getItem(itemCode).pipe(catchError(() => of(null as ItemRecord | null))),
           sellingPrice: this.websiteItemService.getItemSellingPrice(itemCode, websiteItem.item_name).pipe(catchError(() => of(0))),
-          reviews: reviews$
+          reviews: reviews$,
+          stock: this.websiteItemService.getItemStock(itemCode).pipe(catchError(() => of([] as StockRow[])))
         }).pipe(
-          switchMap(({ item, reviews, sellingPrice }) => {
+          switchMap(({ item, reviews, sellingPrice, stock }) => {
             console.log('🔍 Item fetched from API:', item);
             // Use actual item_code from Item document (more reliable than websiteItem.item_code)
             const actualItemCode = item?.item_code || item?.name || itemCode;
@@ -230,12 +231,12 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
                 variants: this.websiteItemService.getVariantsWithPrices(item.name).pipe(catchError(() => of([]))),
                 pricingRules: pricingRules$
               }).pipe(
-                map(({ variants, pricingRules }) => ({ websiteItem, item, reviews, sellingPrice, pricingRules, variants })),
-                catchError(() => of({ websiteItem, item, reviews, sellingPrice, pricingRules: [] as PricingRuleSlab[], variants: [] }))
+                map(({ variants, pricingRules }) => ({ websiteItem, item, reviews, sellingPrice, pricingRules, variants, stock })),
+                catchError(() => of({ websiteItem, item, reviews, sellingPrice, pricingRules: [] as PricingRuleSlab[], variants: [], stock }))
               );
             }
             return pricingRules$.pipe(
-              map(pricingRules => ({ websiteItem, item, reviews, sellingPrice, pricingRules, variants: [] }))
+              map(pricingRules => ({ websiteItem, item, reviews, sellingPrice, pricingRules, variants: [], stock }))
             );
           })
         );
@@ -257,6 +258,7 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
       this.currentReviews = result.reviews;
 
       this.product = this.toErpProduct(result.websiteItem, result.item, result.sellingPrice);
+      this.applyStockToProduct((result as any).stock || []);
       this.images = this.product.images;
       this.imageSrc = this.images[0] || this.fallbackImage;
       this.loadAttachedImages(result.websiteItem.name, result.item?.name);
@@ -367,6 +369,12 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
       : 0;
   }
 
+  // Live warehouse stock (ERPNext Bin balance qty) for the item currently shown.
+  private applyStockToProduct(stock: StockRow[]): void {
+    this.product.stockByWarehouse = stock;
+    this.product.stockQty = stock.reduce((sum, row) => sum + row.qty, 0);
+  }
+
   increaseQty(): void {
     this.qty++;
     this.calculatePricing();
@@ -447,7 +455,15 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
     
     // Default the URL in the address bar without triggering a reload
     this.location.replaceState('/categories/product/' + encodeURIComponent(item.name));
-    
+
+    // Refresh warehouse stock for the newly selected variant. Shared so both the
+    // optimistic update below and the background website-item sync (which each
+    // reassign this.product to a fresh object without stock fields) can reapply
+    // it without firing a second HTTP request.
+    const stockItemCode = item.item_code || item.name;
+    const stock$ = this.websiteItemService.getItemStock(stockItemCode).pipe(shareReplay(1));
+    stock$.subscribe(stock => this.applyStockToProduct(stock));
+
     // Optimistic instant update using merged data
     if (this.currentWebsiteItem) {
       const mergedWebsiteItem = {
@@ -512,6 +528,7 @@ export class ProductdetailComponent implements OnInit, OnDestroy{
           // Re-sync EVERYTHING with the exact fetched variant Website Item
           this.currentWebsiteItem = websiteItem;
           this.product = this.toErpProduct(websiteItem, item, sellingPrice);
+          stock$.subscribe(stock => this.applyStockToProduct(stock));
           this.images = this.product.images;
           this.imageSrc = this.images[0] || this.fallbackImage;
           this.category = this.product.category;

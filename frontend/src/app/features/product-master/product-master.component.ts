@@ -22,6 +22,8 @@ interface ProductMasterItem extends WebsiteItem {
   wholesale_pricing_tiers?: WholesalePricingTier[];
   pricingRuleSlabs?: PricingRuleSlabDetail[];
   qty?: number;                  // qty selected via the card's stepper, before Add to Cart
+  stockQty?: number;
+  stockByWarehouse?: { warehouse: string; qty: number }[];
 }
 
 @Component({
@@ -165,15 +167,21 @@ export class ProductMasterComponent implements OnInit, OnDestroy {
             this.allItems = baseItems;
             this.applyFilter();
 
-            // Apply pricing rule discounts — fetch all rules once, map to items.
-            // Also resolve the full qty-based slabs so "Add to Cart" from the card
+            // Apply pricing rule discounts and live warehouse stock — fetch both once, map to items.
+            // Pricing rules also resolve the full qty-based slabs so "Add to Cart" from the card
             // applies the same tiered pricing the product detail page does.
-            this.websiteItemService.getAllActivePricingRuleSlabs().subscribe(slabMap => {
+            forkJoin({
+              slabMap: this.websiteItemService.getAllActivePricingRuleSlabs(),
+              stockMap: this.websiteItemService.getAllItemStock().pipe(catchError(() => of(new Map<string, { warehouse: string; qty: number }[]>())))
+            }).subscribe(({ slabMap, stockMap }) => {
               this.allItems = this.allItems.map(item => {
                 const ic = (item as any).item_code || item.name;
                 const rules = slabMap.get(ic) || [];
                 const base = item.erpPrice;
                 const pricingRuleSlabs = this.resolvePricingRuleSlabs(rules, base);
+
+                const stockByWarehouse = stockMap.get(ic) || [];
+                const stockQty = stockByWarehouse.reduce((sum, row) => sum + row.qty, 0);
 
                 const badgeRule = rules
                   .filter(r => r.minQty <= 1 && (r.discountPercentage > 0 || r.fixedPrice > 0 || r.discountAmount > 0))
@@ -184,9 +192,9 @@ export class ProductMasterComponent implements OnInit, OnDestroy {
                   const discountPct = badgeRule.discountPercentage > 0
                     ? badgeRule.discountPercentage
                     : (base > 0 ? Math.round(((base - discounted) / base) * 100) : 0);
-                  return { ...item, erpDiscountedPrice: discounted, erpDiscountPct: discountPct, pricingRuleSlabs };
+                  return { ...item, erpDiscountedPrice: discounted, erpDiscountPct: discountPct, pricingRuleSlabs, stockQty, stockByWarehouse };
                 }
-                return { ...item, pricingRuleSlabs };
+                return { ...item, pricingRuleSlabs, stockQty, stockByWarehouse };
               });
               this.applyFilter();
               this.isLoading = false;

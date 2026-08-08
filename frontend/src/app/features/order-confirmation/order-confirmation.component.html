@@ -8,17 +8,25 @@
   <ng-container *ngIf="!loading && status as s">
 
     <!-- Still finalizing in ERPNext -->
-    <div *ngIf="s.status === 'paid' || s.status === 'erpnext_syncing'" class="bg-white border border-gray-200 rounded-lg shadow-sm p-10 text-center">
+    <div *ngIf="s.status === 'paid' || s.status === 'erpnext_syncing' || s.status === 'cod_placed'" class="bg-white border border-gray-200 rounded-lg shadow-sm p-10 text-center">
       <div class="w-12 h-12 border-4 border-gray-200 border-t-gray-800 rounded-full animate-spin mx-auto mb-6"></div>
-      <h2 class="text-lg font-bold text-gray-900 mb-2">Finalizing your order...</h2>
-      <p class="text-sm text-gray-500">Your payment was received. We're generating your Sales Order and Invoice - this usually takes a few seconds.</p>
+      <h2 class="text-lg font-bold text-gray-900 mb-2">{{ s.payment_method === 'cod' ? 'Placing your order...' : 'Finalizing your order...' }}</h2>
+      <p class="text-sm text-gray-500">
+        <ng-container *ngIf="s.payment_method === 'cod'; else onlineFinalizingMsg">We're creating your Sales Order - this usually takes a few seconds.</ng-container>
+        <ng-template #onlineFinalizingMsg>Your payment was received. We're generating your Sales Order and Invoice - this usually takes a few seconds.</ng-template>
+      </p>
     </div>
 
     <!-- Success -->
     <div *ngIf="s.status === 'erpnext_synced'" class="bg-white border border-gray-200 rounded-lg shadow-sm p-10 text-center">
       <i class="fa-solid fa-circle-check text-5xl text-green-500 mb-6"></i>
-      <h2 class="text-xl font-bold text-gray-900 mb-2">Payment Successful!</h2>
-      <p class="text-sm text-gray-500 mb-8">Your order has been placed and confirmed.</p>
+      <h2 class="text-xl font-bold text-gray-900 mb-2">{{ s.payment_method === 'cod' ? 'Order Placed!' : 'Payment Successful!' }}</h2>
+      <p class="text-sm text-gray-500 mb-8">
+        <ng-container *ngIf="s.payment_method === 'cod'; else onlineSuccessMsg">
+          Your order has been placed. Please keep <strong>&#8377;{{ s.amount | number:'1.2-2' }}</strong> ready to pay in cash when your order is delivered.
+        </ng-container>
+        <ng-template #onlineSuccessMsg>Your order has been placed and confirmed.</ng-template>
+      </p>
 
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-left mb-8">
         <div class="bg-gray-50 rounded-md p-4">
@@ -30,10 +38,19 @@
           <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Sales Invoice</p>
           <p class="text-sm font-bold text-gray-900">{{ s.erpnext?.sales_invoice?.name }}</p>
         </div>
-        <div class="bg-gray-50 rounded-md p-4">
-          <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Payment Entry</p>
-          <p class="text-sm font-bold text-gray-900">{{ s.erpnext?.payment_entry?.name }}</p>
-        </div>
+
+        <ng-container *ngIf="s.payment_method === 'cod'; else paymentEntryBox">
+          <div class="bg-gray-50 rounded-md p-4">
+            <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Amount Due (COD)</p>
+            <p class="text-sm font-bold text-gray-900">&#8377;{{ (s.erpnext?.sales_invoice?.outstanding_amount ?? s.amount) | number:'1.2-2' }}</p>
+          </div>
+        </ng-container>
+        <ng-template #paymentEntryBox>
+          <div class="bg-gray-50 rounded-md p-4">
+            <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Payment Entry</p>
+            <p class="text-sm font-bold text-gray-900">{{ s.erpnext?.payment_entry?.name }}</p>
+          </div>
+        </ng-template>
       </div>
 
       <div class="flex flex-wrap justify-center gap-4">

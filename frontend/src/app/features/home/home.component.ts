@@ -139,12 +139,18 @@ export class HomeComponent implements OnInit{
       })
     ).subscribe({
       next: (enrichedItems: any[]) => {
-        this.websiteItemService.getAllActivePricingRuleSlabs().subscribe(slabMap => {
+        forkJoin({
+          slabMap: this.websiteItemService.getAllActivePricingRuleSlabs(),
+          stockMap: this.websiteItemService.getAllItemStock().pipe(catchError(() => of(new Map<string, { warehouse: string; qty: number }[]>())))
+        }).subscribe(({ slabMap, stockMap }) => {
           const newProducts = enrichedItems.map(item => {
             const ic = item.item_code || item.name;
             const rules = slabMap.get(ic) || [];
             const base = item.price;
             const pricingRuleSlabs = this.resolvePricingRuleSlabs(rules, base);
+
+            const stockByWarehouse = stockMap.get(ic) || [];
+            const stockQty = stockByWarehouse.reduce((sum, row) => sum + row.qty, 0);
 
             const badgeRule = rules
               .filter((r: PricingRuleSlab) => r.minQty <= 1 && (r.discountPercentage > 0 || r.fixedPrice > 0 || r.discountAmount > 0))
@@ -159,16 +165,18 @@ export class HomeComponent implements OnInit{
                 ...item,
                 erpDiscountedPrice: discounted,
                 erpDiscountPct: discountPct,
-                pricingRuleSlabs
+                pricingRuleSlabs,
+                stockQty,
+                stockByWarehouse
               };
             }
-            return { ...item, pricingRuleSlabs };
+            return { ...item, pricingRuleSlabs, stockQty, stockByWarehouse };
           });
-          
+
           this.products = [...this.products, ...newProducts];
           this.currentPage++;
           this.isFetchingMore = false;
-          
+
           if (this.products.length >= this.allWebsiteItems.length) {
             this.hasMore = false;
           }

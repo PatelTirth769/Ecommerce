@@ -13,10 +13,6 @@
     </div>
 
     <div class="register-form-body">
-      <div class="enabled-toggle">
-        <input type="checkbox" checked disabled id="enabled">
-        <label for="enabled">Enabled</label>
-      </div>
 
       <div class="section-card">
         <h3>Basic Info</h3>
@@ -25,14 +21,10 @@
           <div class="erp-grid">
             <!-- Column 1 -->
             <div class="erp-col">
-              <div class="erp-form-group">
-                <label>Email *</label>
-                <input type="email" formControlName="email">
-                <span class="error-hint" *ngIf="registerForm.get('email')?.invalid && registerForm.get('email')?.touched">Invalid email</span>
-              </div>
+
               <div class="erp-form-group">
                 <label>Mobile Number *</label>
-                <input type="tel" formControlName="mobile" maxlength="10" (keypress)="onMobileKeyPress($event)">
+                <input type="tel" formControlName="mobile" maxlength="10" (keypress)="onNumericKeyPress($event)">
                 <span class="error-hint" *ngIf="registerForm.get('mobile')?.hasError('required') && registerForm.get('mobile')?.touched">Mobile number is required</span>
                 <span class="error-hint" *ngIf="registerForm.get('mobile')?.hasError('pattern') && registerForm.get('mobile')?.touched">Mobile number must be exactly 10 digits</span>
               </div>
@@ -50,18 +42,14 @@
             <!-- Column 2 -->
             <div class="erp-col">
               <div class="erp-form-group">
-                <label>Username</label>
-                <input type="text" formControlName="username">
+                <label>FSSAI Number</label>
+                <input type="text" formControlName="fssai" maxlength="14" (keypress)="onNumericKeyPress($event)" placeholder="Enter 14-digit FSSAI No.">
+                <span class="error-hint" *ngIf="registerForm.get('fssai')?.hasError('pattern') && registerForm.get('fssai')?.touched">Invalid FSSAI format. It must be exactly 14 digits.</span>
               </div>
             </div>
 
             <!-- Column 3 -->
             <div class="erp-col">
-
-              <div class="erp-check-group">
-                <input type="checkbox" formControlName="send_welcome_email" id="welcome">
-                <label for="welcome">Send Welcome Email</label>
-              </div>
             </div>
           </div>
 

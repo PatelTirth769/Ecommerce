@@ -181,14 +181,20 @@ export class ProductService {
           }
         });
 
-        // Fetch pricing rules and overlay them (both the flat "at a glance" discount badge
-        // and the full qty-based slabs, so cards can add-to-cart with correct tiered pricing
-        // just like the product detail page does).
-        return this.websiteItemService.getAllActivePricingRuleSlabs().pipe(
-          map(slabMap => {
+        // Fetch pricing rules and live warehouse stock, and overlay both onto the products
+        // (pricing rules so cards can add-to-cart with correct tiered pricing just like the
+        // product detail page does; stock so cards can show real warehouse balance qty).
+        return forkJoin({
+          slabMap: this.websiteItemService.getAllActivePricingRuleSlabs(),
+          stockMap: this.websiteItemService.getAllItemStock().pipe(catchError(() => of(new Map<string, { warehouse: string; qty: number }[]>())))
+        }).pipe(
+          map(({ slabMap, stockMap }) => {
             return products.map(p => {
               const rules = slabMap.get(p.item_code || '') || [];
               const pricingRuleSlabs = this.resolvePricingRuleSlabs(rules, p.price);
+
+              const stockByWarehouse = stockMap.get(p.item_code || '') || [];
+              const stockQty = stockByWarehouse.reduce((sum, row) => sum + row.qty, 0);
 
               const badgeRule = rules
                 .filter(r => r.minQty <= 1 && (r.discountPercentage > 0 || r.fixedPrice > 0 || r.discountAmount > 0))
@@ -203,10 +209,12 @@ export class ProductService {
                   ...p,
                   erpDiscountedPrice: discounted,
                   erpDiscountPct: discountPct,
-                  pricingRuleSlabs
+                  pricingRuleSlabs,
+                  stockQty,
+                  stockByWarehouse
                 };
               }
-              return { ...p, pricingRuleSlabs };
+              return { ...p, pricingRuleSlabs, stockQty, stockByWarehouse };
             }).filter(p => p.title && p.title.trim() !== '' && p.images && p.images.length > 0);
           }),
           catchError(() => of(products.filter(p => p.title && p.title.trim() !== '' && p.images && p.images.length > 0)))
